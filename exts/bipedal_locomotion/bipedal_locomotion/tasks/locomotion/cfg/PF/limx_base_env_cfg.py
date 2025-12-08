@@ -105,7 +105,7 @@ class CommandCfg(BaseCommandsCfg):
     """后初始化配置 / Post-initialization configuration"""
     def __post_init__(self):
         self.base_velocity.asset_name = "robot"          # 关联的机器人资产名称 / Associated robot asset name
-        self.base_velocity.heading_command = True        # 启用航向命令 / Enable heading commands
+        self.base_velocity.heading_command = False       # 禁用航向命令，使用角速度控制 / Disable heading command, use angular velocity
         self.base_velocity.debug_vis = True              # 启用调试可视化 / Enable debug visualization
         self.base_velocity.heading_control_stiffness = 1.0  # 航向控制刚度 / Heading control stiffness
         self.base_velocity.resampling_time_range = (0.0, 5.0)  # 速度命令重采样时间 / Velocity command resampling time
@@ -115,7 +115,7 @@ class CommandCfg(BaseCommandsCfg):
         self.base_velocity.ranges = mdp.UniformVelocityCommandCfg.Ranges(
             lin_vel_x=(-1.5, 1.5),      # 前进速度范围 [m/s] / Forward velocity range [m/s]
             lin_vel_y=(-1.0, 1.0),      # 横向速度范围 [m/s] / Lateral velocity range [m/s]
-            ang_vel_z=(-0.5, 0.5),      # 转向角速度范围 [rad/s] / Turning angular velocity range [rad/s]
+            ang_vel_z=(-1.0, 1.0),      # 转向角速度范围 [rad/s] (扩大范围) / Turning angular velocity range [rad/s]
             heading=(-math.pi, math.pi)  # 航向角范围 [rad] / Heading angle range [rad]
         )
 
@@ -181,6 +181,12 @@ class ObservarionsCfg:
             params={"command_name": "gait_command"}  # 步态命令 / Gait command
         )
         
+        # 速度命令 / Velocity commands
+        velocity_commands = ObsTerm(
+            func=mdp.generated_commands, 
+            params={"command_name": "base_velocity"}
+        )
+
         def __post_init__(self):
             self.enable_corruption = True      # 启用观测损坏 / Enable observation corruption
             self.concatenate_terms = True      # 连接所有观测项 / Concatenate all observation terms
@@ -204,6 +210,12 @@ class ObservarionsCfg:
         gait_phase = ObsTerm(func=mdp.get_gait_phase)
         gait_command = ObsTerm(func=mdp.get_gait_command, params={"command_name": "gait_command"})
         
+        # 速度命令 / Velocity commands
+        velocity_commands = ObsTerm(
+            func=mdp.generated_commands, 
+            params={"command_name": "base_velocity"}
+        )
+
         def __post_init__(self):
             self.enable_corruption = True
             self.concatenate_terms = True
@@ -226,6 +238,12 @@ class ObservarionsCfg:
 
         gait_phase = ObsTerm(func=mdp.get_gait_phase)
         gait_command = ObsTerm(func=mdp.get_gait_command, params={"command_name": "gait_command"})
+
+        # 速度命令 / Velocity commands
+        velocity_commands = ObsTerm(
+            func=mdp.generated_commands, 
+            params={"command_name": "base_velocity"}
+        )
 
         heights = ObsTerm(func=mdp.height_scan,params={"sensor_cfg": SceneEntityCfg("height_scanner")})
         
@@ -377,16 +395,16 @@ class EventsCfg:
     push_robot = EventTerm(
         func=mdp.apply_external_force_torque_stochastic,  # 随机外力扰动 / Stochastic external force disturbance
         mode="interval",                            # 间隔模式 / Interval mode
-        interval_range_s=(0.0, 0.0),               # 间隔时间范围 / Interval time range
+        interval_range_s=(10.0, 15.0),               # 间隔时间范围 / Interval time range
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="base_Link"),
             # 力的范围 [N] / Force range [N]
             "force_range": {
-                "x": (-500.0, 500.0), "y": (-500.0, 500.0), "z": (-0.0, 0.0),
+                "x": (-800.0, 800.0), "y": (-800.0, 800.0), "z": (-0.0, 0.0),
             },
             # 力矩范围 [N⋅m] / Torque range [N⋅m]
             "torque_range": {"x": (-50.0, 50.0), "y": (-50.0, 50.0), "z": (-0.0, 0.0)},
-            "probability": 0.002,                   # 发生概率 / Occurrence probability
+            "probability": 0.005,                   # 发生概率 / Occurrence probability
         },
         is_global_time=False,
         min_step_count_between_reset=0,
@@ -460,7 +478,7 @@ class RewardsCfg:
         weight=-0.1,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=["foot_[RL]_Link"]),
-            "base_height_target": 0.65,            # 基座目标高度 / Base target height
+            "base_height_target": 0.78,            # 基座目标高度 / Base target height
             "foot_radius": 0.03                    # 足部半径 / Foot radius
         },
     )

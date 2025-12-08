@@ -1,0 +1,84 @@
+SDM5008 Final Project: 基于 Isaac Lab 的双足机器人强化学习控制
+•Due Date: 2026 年 1 月 8 日
+
+1. 项目背景
+本项目旨在让学生深入接触前沿的具身智能（Embodied AI）与机器人控制算法。随着 NVIDIA Isaac Lab (基于 Isaac Sim) 成为业界主流的机器人仿真与学习平台，掌握基于 GPU 的大规模并行仿真技术、熟练掌握强化学习（RL）代码实战、以及掌握发布高质量开源项目的核心流程与要素，对于机器人方向的学生至关重要。
+本项目要求学生使用 Isaac Lab 仿真平台，针对简单的双足机器人（Point-foot Biped）设计并训练强化学习（RL）策略。学生需要经历从环境搭建、奖励函数设计、策略训练、抗扰测试到开源项目维护的完整闭环。这不仅是对课堂理论知识的实践，更是对自主探索能力、文献阅读能力及新工具（Omniverse/PyTorch/RSL_RL）掌握能力的挑战。
+2. 项目内容
+项目以双足机器人（Bipedal Robot）的运动控制为例。
+学生需要在 Isaac Lab 中配置环境，利用 PPO（Proximal Policy Optimization）等算法训练机器人行走。我们关注控制器的鲁棒性和泛化能力。
+
+具体任务安排如下：
+
+2.1  框架理解与代码总结 (Code Review & Architecture)
+任务： 精读提供的 Isaac Lab 示例代码模板。 
+要求： 在报告中详细梳理代码结构，解释以下关键模块的功能与相互关系：
+•Scene Configuration: 机器人的 USD 资产加载与关节定义。
+•Observation Manager: 观测空间的构建与噪音注入。
+•Reward Manager: 奖励项的设计及其权重对训练的影响。
+•Action Manager: 动作空间的定义（如 PD 控制器的设定）。
+•评分标准：对 Isaac Lab 架构理解的深度与清晰度。
+
+2.2 平地速度跟随 (Flat Ground Velocity Tracking)
+任务： 修改并调试代码，使机器人在平整路面上能够稳定行走，并精准响应速度指令。 细节： Policy 需要接受用户输入的指令 (v_x, v_y, omega_z)。 
+考核： 评分时将通过键盘或预设脚本发送随机的速度指令（持续约 1 分钟）。
+•评分标准：
+a.速度追踪误差：实际速度与指令速度的均方误差 (MSE)。
+b.姿态稳定性：Base 的 Roll/Pitch 震荡幅度。
+c.存活率：不摔倒。
+
+2.3 抗干扰鲁棒性测试 (Disturbance Rejection)
+任务： 在平地行走过程中，利用 Isaac Lab 的 Domain Randomization 功能或直接施加外力，测试 Policy 的抗干扰能力。 
+考核： 在行走过程中，系统会随机向机器人 Base 施加不同方向和大小的瞬时推力。
+•评分标准： 机器人能够承受不摔倒的最大推力冲量（Impulse, Ns），以及受到干扰后恢复步态的速度。
+
+2.4 复杂地形适应 (Terrain Traversal)
+任务： 在 Isaac Lab 的 TerrainGenerator 中配置不同的地形（如缓坡、台阶、离散路面）。 考核： 机器人需从起点 A 移动到终点 B，途经预设的混合地形。
+•评分标准：
+a.通过率：能否成功到达终点。
+b.地形适应性：在切换地形（如从平地进入斜坡）时的步态平滑度。
+
+2.5  综合表现 (Optional Bonus: Expressive Motion & Open Source)（选做）
+任务： 设计一个具有表现力的动作，或将你的成果发布为开源项目（任选其一或组合）：
+•特技动作： 如单脚跳、后空翻、甚至舞蹈动作。
+•鲁棒性极限： 在极端参数随机化（如质量、摩擦力大幅变化）下依然保持行走。
+•开源项目发布： 基于你实现的算法或动作，发布一个标准的开源项目。需包含开源项目的所有核心要素（README 文档、清晰的代码结构、Demo 视频/GIF、环境配置指南等）。
+
+3. 资源提供
+•算力支持：每组提供GradMotion训练平台账号额度，因为额度固定，希望大家用完就关闭云桌面/开发机。在训练过程中推荐使用训练功能或者开发机，这样方便查看training loss。
+
+•Code Base: 
+[limxtron1lab-main (1).zip]
+环境配置参考README.md，安装 Isaacsim 4.5.0 + Isaaclab 2.1.0，可以从Isaac-Limx-PF-Blind-Flat-v0开始。之后的训练也统一使用Point Foot。
+
+
+•参考教程 / 文章: 
+￮ACR2025 Isaac Sim / Isaac Lab Tutorial
+￮https://github.com/clearlab-sustech/Awesome-Legged-Robot-Learning
+￮https://github.com/limxdynamics/tron1-rl-isaaclab
+￮Isaac Lab 官方文档
+￮Lychee AI Isaac Lab Tutorial
+
+4. 要求
+
+•组队：需要组队完成 Final Project，每队 2人。 
+
+•提交物 (blackboard提交)：
+1. 项目报告 (PDF)： 
+a.完整陈述每个子任务的解决方案（环境搭建、奖励函数设计思路、参数调整过程）。 
+b.必须包含训练曲线（GradMotion上的训练模块 或者 Tensorboard 或者 wandb 截图，使用方法自行查阅教程）。
+c.可使用中文或英文撰写。 
+
+2.源码包： 
+a.包含所有修改过的配置文件和 Python 脚本。
+b.提供训练好的模型权重文件 (.pt 或 .onnx)。 
+c.Readme 文档：清晰说明如何加载环境并复现演示结果。 
+d.代码注释需使用英文。 
+
+3.演示视频：一段剪辑后的视频，展示各项任务的完成情况。
+
+4.开源项目：如果选做了开源项目，请附上你的开源项目链接。
+
+5.注意事项： 严禁直接使用开源仓库现成的模型权重，或者别的组同学的模型权重，一经发现取消成绩。
+
+祝大家享受在 Final Project 中训练机器人的过程！ovo
