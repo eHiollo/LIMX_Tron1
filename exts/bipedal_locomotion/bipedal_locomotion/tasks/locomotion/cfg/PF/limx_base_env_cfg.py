@@ -423,10 +423,10 @@ class RewardsCfg:
 
     # tracking related rewards
     rew_lin_vel_xy = RewTerm(
-        func=mdp.track_lin_vel_xy_exp, weight=3.0, params={"command_name": "base_velocity", "std": math.sqrt(0.2)}
+        func=mdp.track_lin_vel_xy_exp, weight=5.0, params={"command_name": "base_velocity", "std": math.sqrt(0.2)}
     )
     rew_ang_vel_z = RewTerm(
-        func=mdp.track_ang_vel_z_exp, weight=1.5, params={"command_name": "base_velocity", "std": math.sqrt(0.2)}
+        func=mdp.track_ang_vel_z_exp, weight=3.0, params={"command_name": "base_velocity", "std": math.sqrt(0.2)}
     )
 
     # 调节相关奖励 / Regulation-related rewards
@@ -466,7 +466,7 @@ class RewardsCfg:
     )
     pen_feet_distance = RewTerm(
         func=mdp.feet_distance,                     # 足部距离惩罚 / Foot distance penalty
-        weight=-100,
+        weight=-30,
         params={
             "min_feet_distance": 0.115,            # 最小足部距离 / Minimum foot distance
             "feet_links_name": ["foot_[RL]_Link"]  # 足部连杆名称 / Foot link names
@@ -475,7 +475,7 @@ class RewardsCfg:
     
     pen_feet_regulation = RewTerm(
         func=mdp.feet_regulation,                   # 足部调节惩罚 / Foot regulation penalty
-        weight=-0.1,
+        weight=0.05,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=["foot_[RL]_Link"]),
             "base_height_target": 0.78,            # 基座目标高度 / Base target height
@@ -485,7 +485,7 @@ class RewardsCfg:
 
     foot_landing_vel = RewTerm(
         func=mdp.foot_landing_vel,                  # 足部着陆速度惩罚 / Foot landing velocity penalty
-        weight=-0.5,
+        weight=-0.2,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=["foot_[RL]_Link"]),
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["foot_[RL]_Link"]),
@@ -498,10 +498,10 @@ class RewardsCfg:
     # 步态奖励 / Gait reward
     test_gait_reward = RewTerm(
         func=mdp.GaitReward,                        # 步态奖励函数 / Gait reward function
-        weight=1.0,
+        weight=0.3,
         params={
-            "tracking_contacts_shaped_force": -2.0,    # 接触力跟踪形状参数 / Contact force tracking shaping
-            "tracking_contacts_shaped_vel": -2.0,      # 接触速度跟踪形状参数 / Contact velocity tracking shaping
+            "tracking_contacts_shaped_force": -1.0,    # 接触力跟踪形状参数 / Contact force tracking shaping
+            "tracking_contacts_shaped_vel": -1.0,      # 接触速度跟踪形状参数 / Contact velocity tracking shaping
             "gait_force_sigma": 25.0,                  # 步态力标准差 / Gait force sigma
             "gait_vel_sigma": 0.25,                    # 步态速度标准差 / Gait velocity sigma
             "kappa_gait_probs": 0.05,                  # 步态概率参数 / Gait probability parameter
@@ -510,6 +510,14 @@ class RewardsCfg:
             "asset_cfg": SceneEntityCfg("robot", body_names="foot_.*"),
         },
     )
+    
+    ## 新增奖励函数
+    pen_yaw_drift = RewTerm(
+        func=mdp.yaw_drift_penalty,
+        weight=-0.2,
+        params={"command_name": "base_velocity"},
+    )
+
 
 
 @configclass
