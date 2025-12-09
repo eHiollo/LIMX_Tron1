@@ -21,6 +21,19 @@ if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
     from isaaclab.managers import RewardTermCfg
 
+def yaw_drift_penalty(env: ManagerBasedRLEnv,
+                      command_name: str = "base_velocity",
+                      yaw_cmd_threshold: float = 0.05) -> torch.Tensor:
+    asset = env.scene["robot"]
+    base_yaw_vel = asset.data.root_ang_vel_w[:, 2]  # z 轴角速度
+    commands = env.command_manager.get_command(command_name)
+    cmd_yaw = commands[:, 2]
+    # 只在命令 yaw 很小的时候惩罚
+    mask = torch.abs(cmd_yaw) < yaw_cmd_threshold
+    drift = torch.abs(base_yaw_vel) * mask
+    return drift  # 配一个小负权重
+
+
 def stay_alive(env: ManagerBasedRLEnv) -> torch.Tensor:
     """保持存活奖励 - 给予机器人基本的存在奖励 / Reward for staying alive - gives robot basic existence reward."""
     return torch.ones(env.num_envs, device=env.device)
