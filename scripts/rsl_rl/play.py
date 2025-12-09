@@ -57,7 +57,7 @@ def main():
     # 解析配置 / Parse configuration
     env_cfg: ManagerBasedRLEnvCfg = parse_env_cfg(
         task_name=args_cli.task, device=args_cli.device, num_envs=args_cli.num_envs
-    )
+    ) # type: ignore
     agent_cfg: RslRlPpoAlgorithmMlpCfg = cli_args.parse_rsl_rl_cfg(args_cli.task, args_cli)
 
     env_cfg.seed = agent_cfg.seed
