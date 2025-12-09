@@ -4,6 +4,8 @@
         "/workspace/isaaclab/source/isaaclab_tasks",
         "/workspace/isaaclab/source/isaaclab_rl",
         "${workspaceFolder}",
+        "${workspaceFolder}/rsl_rl",
+        "${workspaceFolder}/exts/bipedal_locomotion",
         "${workspaceFolder}/exts/bipedal_locomotion/bipedal_locomotion",
     ],
 
