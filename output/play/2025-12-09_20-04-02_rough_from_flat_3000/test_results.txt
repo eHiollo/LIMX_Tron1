@@ -1,0 +1,62 @@
+Test Results / 测试结果
+============================================================
+Test Date: 2026-01-05 22:43:55
+Checkpoint: output/play/2025-12-09_20-04-02_rough_from_flat_3000/model_2600.pt
+Task: Isaac-Limx-PF-Blind-Flat-Play-v0
+Num Environments: 512
+Test Mode: all
+============================================================
+
+
+VELOCITY_TRACKING
+------------------------------------------------------------
+mse_vx: 0.291066
+mse_vy: 0.110007
+mse_omega_z: 0.090432
+mse_total: 0.491528
+rmse_vx: 0.539506
+rmse_vy: 0.331674
+rmse_omega_z: 0.300719
+total_samples: 113152
+roll_mean: 0.036867
+roll_std: 0.048753
+roll_max: 2.0666
+pitch_mean: 0.036503
+pitch_std: 0.047718
+pitch_max: 0.463465
+survival_rate: 0.999885
+total_steps: 221
+alive_steps: 113139
+max_consecutive_alive: 221
+
+
+DISTURBANCE
+------------------------------------------------------------
+num_disturbances: 5
+max_force_magnitude: 469.9099
+avg_recovery_time: 0.020000
+total_recovery_time: 0.100000
+survival_rate: 0.999642
+total_steps: 218
+total_samples: 111616
+alive_steps: 111576
+max_consecutive_alive: 218
+
+
+TERRAIN
+------------------------------------------------------------
+survival_rate: 1.0000
+total_steps: 77
+total_samples: 39424
+alive_steps: 39424
+max_consecutive_alive: 77
+distance_traveled_avg: 21.96939468383789
+distance_traveled_max: 42.6002197265625
+distance_traveled_min: 1.5339258909225464
+
+
+============================================================
+Summary / 汇总
+============================================================
+Total tests executed: 3
+测试总数: 3

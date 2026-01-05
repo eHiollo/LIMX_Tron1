@@ -771,15 +771,54 @@ def main():
     
     # 保存结果 / Save results
     results_file = os.path.join(log_dir, "test_results.txt")
-    with open(results_file, "w") as f:
+    os.makedirs(log_dir, exist_ok=True)  # 确保目录存在 / Ensure directory exists
+    
+    with open(results_file, "w", encoding="utf-8") as f:
         f.write("Test Results / 测试结果\n")
+        f.write("="*60 + "\n")
+        f.write(f"Test Date: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"Checkpoint: {resume_path}\n")
+        f.write(f"Task: {args_cli.task}\n")
+        f.write(f"Num Environments: {args_cli.num_envs}\n")
+        f.write(f"Test Mode: {args_cli.test_mode}\n")
         f.write("="*60 + "\n\n")
-        for test_name, test_results in results.items():
-            f.write(f"{test_name.upper()}\n")
-            f.write("-"*60 + "\n")
-            for key, value in test_results.items():
-                f.write(f"{key}: {value}\n")
-            f.write("\n")
+        
+        if not results:
+            f.write("No test results available. Tests may not have been executed.\n")
+            f.write("没有测试结果可用。测试可能未执行。\n")
+        else:
+            for test_name, test_results in results.items():
+                f.write(f"\n{test_name.upper()}\n")
+                f.write("-"*60 + "\n")
+                
+                if isinstance(test_results, dict):
+                    if "error" in test_results:
+                        f.write(f"ERROR: {test_results['error']}\n")
+                    else:
+                        for key, value in test_results.items():
+                            # 格式化输出 / Format output
+                            if isinstance(value, float):
+                                if abs(value) < 0.001:
+                                    f.write(f"{key}: {value:.6e}\n")
+                                elif abs(value) < 1.0:
+                                    f.write(f"{key}: {value:.6f}\n")
+                                else:
+                                    f.write(f"{key}: {value:.4f}\n")
+                            elif isinstance(value, (list, np.ndarray)):
+                                f.write(f"{key}: {value}\n")
+                            else:
+                                f.write(f"{key}: {value}\n")
+                else:
+                    f.write(f"Result: {test_results}\n")
+                f.write("\n")
+        
+        # 添加汇总信息 / Add summary
+        f.write("\n" + "="*60 + "\n")
+        f.write("Summary / 汇总\n")
+        f.write("="*60 + "\n")
+        f.write(f"Total tests executed: {len(results)}\n")
+        f.write(f"测试总数: {len(results)}\n")
+        
     print(f"测试结果已保存到: {results_file} / Test results saved to: {results_file}")
     
     # 注意：不需要关闭环境，因为会在 finally 块中关闭 simulation_app
