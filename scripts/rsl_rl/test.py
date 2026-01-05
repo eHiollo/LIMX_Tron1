@@ -19,18 +19,20 @@ parser = argparse.ArgumentParser(description="Test RL agent with various evaluat
 parser.add_argument("--test_mode", type=str, default="all", 
                     choices=["velocity_tracking", "disturbance", "terrain", "all"],
                     help="Test mode: velocity_tracking, disturbance, terrain, or all")
-parser.add_argument("--checkpoint_path", type=str, default=None, 
+parser.add_argument("--checkpoint_path", type=str, default="output/play/2025-12-09_20-04-02_rough_from_flat_3000/model_2600.pt", 
                     help="Relative path to checkpoint file.")
 parser.add_argument("--task", type=str, default="Isaac-Limx-PF-Blind-Flat-Play-v0",
                     help="Task name for testing")
-parser.add_argument("--num_envs", type=int, default=1, 
+parser.add_argument("--num_envs", type=int, default=512, 
                     help="Number of environments to simulate (1 for single robot testing)")
-parser.add_argument("--test_duration", type=float, default=60.0,
-                    help="Test duration in seconds (default: 60s for velocity tracking)")
-parser.add_argument("--disturbance_prob", type=float, default=0.01,
-                    help="Probability of applying disturbance per step")
+parser.add_argument("--test_duration", type=float, default=10,
+                    help="Test duration in seconds (default: 60s for velocity tracking, 120s for disturbance, 180s for terrain)")
+parser.add_argument("--disturbance_prob", type=float, default=0.03,
+                    help="Probability of applying disturbance per step (default: 0.03, increased from 0.01)")
 parser.add_argument("--disturbance_force_range", type=float, nargs=2, default=[-500, 500],
                     help="Disturbance force range in N")
+parser.add_argument("--disturbance_min_interval", type=int, default=30,
+                    help="Minimum steps between disturbances (default: 30, reduced from 50)")
 parser.add_argument("--video", action="store_true", default=False,
                     help="Record videos during testing")
 parser.add_argument("--seed", type=int, default=42,
@@ -41,6 +43,13 @@ cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
+
+# 自动检测SSH连接，如果是SSH环境则自动启用无头模式
+# Auto-detect SSH connection, enable headless mode automatically if in SSH environment
+if os.environ.get('SSH_CONNECTION') or os.environ.get('SSH_CLIENT') or os.environ.get('SSH_TTY'):
+    if hasattr(args_cli, 'headless') and not args_cli.headless:
+        args_cli.headless = True
+        print("[INFO] 检测到SSH连接，自动启用无头模式 / SSH connection detected, enabling headless mode automatically")
 
 if args_cli.video:
     args_cli.enable_cameras = True
@@ -226,6 +235,35 @@ class TestMetrics:
         return max_count
 
 
+def _create_test_env(task_name, env_cfg, enable_video, video_folder, test_name, duration):
+    """为每个测试创建独立的环境实例（支持视频录制）
+    Create separate environment instance for each test (with video recording support)
+    """
+    # 创建基础环境 / Create base environment
+    env = gym.make(task_name, cfg=env_cfg, render_mode="rgb_array" if enable_video else None)
+    
+    # 如果启用视频录制，在 RslRlVecEnvWrapper 之前添加 RecordVideo wrapper
+    # If video recording is enabled, add RecordVideo wrapper before RslRlVecEnvWrapper
+    if enable_video and video_folder is not None:
+        video_kwargs = {
+            "video_folder": os.path.join(video_folder, test_name),
+            "step_trigger": lambda step: step == 0,  # 在测试开始时录制 / Record at test start
+            "video_length": int(duration / env.unwrapped.step_dt),
+            "disable_logger": True,
+        }
+        print(f"[INFO] Setting up video recording for {test_name} test: {video_kwargs['video_folder']}")
+        env = gym.wrappers.RecordVideo(env, **video_kwargs)
+    
+    # convert to single-agent instance if required by the RL algorithm
+    if isinstance(env.unwrapped, DirectMARLEnv):
+        env = multi_agent_to_single_agent(env)
+    
+    # wrap around environment for rsl-rl (RecordVideo must be before this)
+    env = RslRlVecEnvWrapper(env)
+    
+    return env
+
+
 def apply_disturbance(env, force_range: Tuple[float, float], env_id: int = 0):
     """施加干扰力到机器人基座 / Apply disturbance force to robot base"""
     robot: Articulation = env.unwrapped.scene["robot"]
@@ -264,6 +302,8 @@ def test_velocity_tracking(env, policy, encoder, metrics: TestMetrics, duration:
     metrics.start_time = time.time()
     
     # 重置环境 / Reset environment
+    # RslRlVecEnvWrapper 使用 get_observations 而不是 reset
+    # RslRlVecEnvWrapper uses get_observations instead of reset
     obs, obs_dict = env.get_observations()
     obs_history = obs_dict["observations"].get("obsHistory")
     if obs_history is not None:
@@ -338,16 +378,20 @@ def test_velocity_tracking(env, policy, encoder, metrics: TestMetrics, duration:
 
 
 def test_disturbance_rejection(env, policy, encoder, metrics: TestMetrics, duration: float, 
-                                disturbance_prob: float, force_range: Tuple[float, float]):
+                                disturbance_prob: float, force_range: Tuple[float, float],
+                                min_interval: int = 30):
     """测试抗干扰能力 / Test disturbance rejection capability"""
     print(f"\n{'='*60}")
     print(f"开始抗干扰测试 (测试时长: {duration}秒) / Starting disturbance rejection test (duration: {duration}s)")
+    print(f"干扰概率: {disturbance_prob:.3f}, 最小间隔: {min_interval}步 / Disturbance prob: {disturbance_prob:.3f}, Min interval: {min_interval} steps")
     print(f"{'='*60}\n")
     
     metrics.reset()
     metrics.start_time = time.time()
     
     # 重置环境 / Reset environment
+    # RslRlVecEnvWrapper 使用 get_observations 而不是 reset
+    # RslRlVecEnvWrapper uses get_observations instead of reset
     obs, obs_dict = env.get_observations()
     obs_history = obs_dict["observations"].get("obsHistory")
     if obs_history is not None:
@@ -361,7 +405,7 @@ def test_disturbance_rejection(env, policy, encoder, metrics: TestMetrics, durat
     while simulation_app.is_running() and (time.time() - metrics.start_time) < duration:
         with torch.inference_mode():
             # 随机施加干扰 / Randomly apply disturbance
-            if np.random.rand() < disturbance_prob and (step_count - last_disturbance_step) > 50:
+            if np.random.rand() < disturbance_prob and (step_count - last_disturbance_step) > min_interval:
                 force = apply_disturbance(env, force_range)
                 metrics.disturbance_forces.append(force)
                 last_disturbance_step = step_count
@@ -438,6 +482,8 @@ def test_terrain_traversal(env, policy, encoder, metrics: TestMetrics, duration:
     metrics.start_time = time.time()
     
     # 重置环境 / Reset environment
+    # RslRlVecEnvWrapper 使用 get_observations 而不是 reset
+    # RslRlVecEnvWrapper uses get_observations instead of reset
     obs, obs_dict = env.get_observations()
     obs_history = obs_dict["observations"].get("obsHistory")
     if obs_history is not None:
@@ -527,38 +573,32 @@ def main():
         resume_path = get_checkpoint_path(log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint)
     else:
         resume_path = args_cli.checkpoint_path
+        if not os.path.exists(resume_path):
+            print(f"[ERROR] Checkpoint file not found: {resume_path}")
+            print(f"[ERROR] Please specify a valid checkpoint path with --checkpoint_path")
+            return
+    
+    if not os.path.exists(resume_path):
+        print(f"[ERROR] Checkpoint file not found: {resume_path}")
+        return
+    
     log_dir = os.path.dirname(resume_path)
     
     print(f"[INFO] Loading model checkpoint from: {resume_path}")
     
-    # 创建isaac环境 / Create isaac environment
-    env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
-    
-    if args_cli.video:
-        video_kwargs = {
-            "video_folder": os.path.join(log_dir, "videos", "test"),
-            "step_trigger": lambda step: step == 0,
-            "video_length": int(args_cli.test_duration / env.unwrapped.step_dt),
-            "disable_logger": True,
-        }
-        print("[INFO] Recording videos during testing.")
-        print_dict(video_kwargs, nesting=4)
-        env = gym.wrappers.RecordVideo(env, **video_kwargs)
-    
-    # convert to single-agent instance if required by the RL algorithm
-    if isinstance(env.unwrapped, DirectMARLEnv):
-        env = multi_agent_to_single_agent(env)
-    
-    # wrap around environment for rsl-rl
-    env = RslRlVecEnvWrapper(env)
-    
-    # load previously trained model
-    ppo_runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
-    ppo_runner.load(resume_path)
-    
-    # obtain the trained policy for inference
-    policy = ppo_runner.get_inference_policy(device=env.unwrapped.device)
-    encoder = ppo_runner.get_inference_encoder(device=env.unwrapped.device)
+    # 为视频录制确定测试时长（如果未指定，使用默认值60秒）/ Determine test duration for video recording
+    if args_cli.test_duration is not None:
+        video_test_duration = args_cli.test_duration
+    else:
+        # 根据测试模式使用默认时长 / Use default duration based on test mode
+        if args_cli.test_mode == "velocity_tracking":
+            video_test_duration = 60.0
+        elif args_cli.test_mode == "disturbance":
+            video_test_duration = 60.0
+        elif args_cli.test_mode == "terrain":
+            video_test_duration = 60.0
+        else:  # all
+            video_test_duration = 60.0  # 默认使用速度跟踪的时长
     
     # 创建指标收集器 / Create metrics collector
     metrics = TestMetrics()
@@ -567,25 +607,108 @@ def main():
     test_mode = args_cli.test_mode
     results = {}
     
+    # 为不同测试模式设置默认时长 / Set default duration for different test modes
+    # 定义各测试的默认时长 / Define default durations for each test
+    velocity_duration = 60.0   # 速度跟踪测试60秒
+    disturbance_duration = 120.0  # 抗干扰测试120秒（增加干扰次数）
+    terrain_duration = 180.0   # 地形测试180秒（增加前进距离）
+    
+    if args_cli.test_duration is not None:
+        # 如果用户指定了时长，所有测试使用相同时长
+        velocity_duration = args_cli.test_duration
+        disturbance_duration = args_cli.test_duration
+        terrain_duration = args_cli.test_duration
+    
+    # 视频录制基础路径 / Base path for video recording
+    video_base_folder = os.path.join(log_dir, "videos", "test") if args_cli.video else None
+    
+    # 创建测试环境（只创建一次，避免多个环境冲突）
+    # Create test environment (only once to avoid conflicts from multiple envs)
+    # 注意：如果启用视频录制，需要在 RslRlVecEnvWrapper 之前添加 RecordVideo wrapper
+    # Note: If video recording is enabled, RecordVideo wrapper must be added before RslRlVecEnvWrapper
+    print(f"[INFO] Creating test environment...")
+    test_env_base = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
+    
+    if isinstance(test_env_base.unwrapped, DirectMARLEnv):
+        test_env_base = multi_agent_to_single_agent(test_env_base)
+    
+    # 如果启用视频录制，添加 RecordVideo wrapper（必须在 RslRlVecEnvWrapper 之前）
+    # If video recording is enabled, add RecordVideo wrapper (must be before RslRlVecEnvWrapper)
+    if args_cli.video and video_base_folder is not None:
+        os.makedirs(video_base_folder, exist_ok=True)
+        video_kwargs = {
+            "video_folder": video_base_folder,
+            "step_trigger": lambda step: step == 0,  # 在重置时录制 / Record on reset
+            "video_length": int(max(velocity_duration, disturbance_duration, terrain_duration) / test_env_base.unwrapped.step_dt),
+            "disable_logger": True,
+            "name_prefix": "test",  # 视频文件名前缀 / Video filename prefix
+        }
+        print(f"[INFO] Setting up video recording: {video_base_folder}")
+        test_env_base = gym.wrappers.RecordVideo(test_env_base, **video_kwargs)
+    
+    # 包装为 RSL-RL 环境
+    # Wrap as RSL-RL environment
+    test_env = RslRlVecEnvWrapper(test_env_base)
+    
+    # 加载模型
+    # Load model
+    print(f"[INFO] Loading model from checkpoint...")
+    ppo_runner = OnPolicyRunner(test_env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
+    ppo_runner.load(resume_path)
+    
+    # 获取训练好的策略用于推理
+    # Obtain the trained policy for inference
+    policy = ppo_runner.get_inference_policy(device=test_env.unwrapped.device)
+    encoder = ppo_runner.get_inference_encoder(device=test_env.unwrapped.device)
+    
+    print(f"[INFO] Model loaded successfully")
+    
+    # 运行测试 / Run tests
     if test_mode == "velocity_tracking" or test_mode == "all":
-        results["velocity_tracking"] = test_velocity_tracking(
-            env, policy, encoder, metrics, args_cli.test_duration
-        )
+        duration = velocity_duration
+        print(f"\n[INFO] Starting velocity_tracking test...")
+        try:
+            results["velocity_tracking"] = test_velocity_tracking(
+                test_env, policy, encoder, metrics, duration
+            )
+            print(f"[INFO] Completed velocity_tracking test")
+        except Exception as e:
+            print(f"[ERROR] Failed to run velocity_tracking test: {e}")
+            import traceback
+            traceback.print_exc()
+            results["velocity_tracking"] = {"error": str(e)}
     
     if test_mode == "disturbance" or test_mode == "all":
-        # 对于抗干扰测试，使用较小的环境数量 / For disturbance test, use smaller number of envs
-        results["disturbance"] = test_disturbance_rejection(
-            env, policy, encoder, metrics, args_cli.test_duration,
-            args_cli.disturbance_prob, tuple(args_cli.disturbance_force_range)
-        )
+        duration = disturbance_duration
+        print(f"\n[INFO] Starting disturbance test...")
+        try:
+            results["disturbance"] = test_disturbance_rejection(
+                test_env, policy, encoder, metrics, duration,
+                args_cli.disturbance_prob, tuple(args_cli.disturbance_force_range),
+                args_cli.disturbance_min_interval
+            )
+            print(f"[INFO] Completed disturbance test")
+        except Exception as e:
+            print(f"[ERROR] Failed to run disturbance test: {e}")
+            import traceback
+            traceback.print_exc()
+            results["disturbance"] = {"error": str(e)}
     
     if test_mode == "terrain" or test_mode == "all":
-        # 对于地形测试，需要使用地形环境 / For terrain test, need terrain environment
         if "Rough" not in args_cli.task and "Stair" not in args_cli.task:
             print("[WARNING] Terrain test recommended with terrain environment (e.g., Isaac-Limx-PF-Blind-Rough-Play-v0)")
-        results["terrain"] = test_terrain_traversal(
-            env, policy, encoder, metrics, args_cli.test_duration
-        )
+        duration = terrain_duration
+        print(f"\n[INFO] Starting terrain test...")
+        try:
+            results["terrain"] = test_terrain_traversal(
+                test_env, policy, encoder, metrics, duration
+            )
+            print(f"[INFO] Completed terrain test")
+        except Exception as e:
+            print(f"[ERROR] Failed to run terrain test: {e}")
+            import traceback
+            traceback.print_exc()
+            results["terrain"] = {"error": str(e)}
     
     # 保存结果 / Save results
     results_file = os.path.join(log_dir, "test_results.txt")
@@ -600,8 +723,8 @@ def main():
             f.write("\n")
     print(f"测试结果已保存到: {results_file} / Test results saved to: {results_file}")
     
-    # close the simulator
-    env.close()
+    # 注意：不需要关闭环境，因为会在 finally 块中关闭 simulation_app
+    # Note: Don't need to close env, as simulation_app will be closed in finally block
 
 
 if __name__ == "__main__":

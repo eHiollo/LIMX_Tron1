@@ -14,7 +14,7 @@
 
 ```bash
 # 运行所有测试 / Run all tests
-python scripts/rsl_rl/test.py --task=Isaac-Limx-PF-Blind-Flat-Play-v0 --checkpoint_path=path/to/checkpoint
+python scripts/rsl_rl/test.py --task=Isaac-Limx-PF-Blind-Flat-Play-v0 --checkpoint_path=output/play/2025-12-09_20-04-02_rough_from_flat_3000/model_2600.pt --video
 
 # 运行特定测试 / Run specific test
 python scripts/rsl_rl/test.py --test_mode=velocity_tracking --task=Isaac-Limx-PF-Blind-Flat-Play-v0 --checkpoint_path=path/to/checkpoint
@@ -40,13 +40,19 @@ python scripts/rsl_rl/test.py --test_mode=terrain --task=Isaac-Limx-PF-Blind-Rou
   - 速度跟踪和抗干扰测试: `Isaac-Limx-PF-Blind-Flat-Play-v0`
   - 地形测试: `Isaac-Limx-PF-Blind-Rough-Play-v0` 或 `Isaac-Limx-PF-Blind-Stair-Play-v0`
 
-- `--test_duration`: 测试时长（秒），默认60秒
+- `--test_duration`: 测试时长（秒）
+  - 速度跟踪测试默认：60秒
+  - 抗干扰测试默认：120秒（已优化，增加干扰次数）
+  - 地形测试默认：180秒（已优化，增加前进距离）
+  - 如果指定，所有测试使用相同时长
 
 - `--num_envs`: 并行环境数量，默认1（单机器人测试）
 
-- `--disturbance_prob`: 抗干扰测试中每步施加干扰的概率，默认0.01
+- `--disturbance_prob`: 抗干扰测试中每步施加干扰的概率，默认0.03（已从0.01增加，提高干扰次数）
 
 - `--disturbance_force_range`: 干扰力范围（N），默认[-500, 500]
+
+- `--disturbance_min_interval`: 两次干扰之间的最小间隔（步数），默认30步（已从50步减少，提高干扰频率）
 
 - `--video`: 是否录制视频
 
@@ -128,11 +134,14 @@ python scripts/rsl_rl/test.py \
    - 地形测试需要使用粗糙地形或楼梯环境（Rough/Stair）
 
 2. **测试时长**: 
-   - 速度跟踪测试建议60秒（课程要求约1分钟）
-   - 地形测试可以设置更长时间
+   - 速度跟踪测试：默认60秒（课程要求约1分钟）
+   - 抗干扰测试：默认120秒（已优化，确保有足够的干扰次数，通常可产生10-20次干扰）
+   - 地形测试：默认180秒（已优化，确保有足够的行进距离，通常可前进10-20米）
 
 3. **干扰参数**: 
-   - 干扰概率和力范围可以根据需要调整
+   - 干扰概率：默认0.03（已优化，从0.01增加）
+   - 干扰间隔：默认30步（已优化，从50步减少）
+   - 干扰力范围：默认[-500, 500]N，可以根据需要调整
    - 较高的干扰力可以测试机器人的极限抗干扰能力
 
 4. **性能**: 
