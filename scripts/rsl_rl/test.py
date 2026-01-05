@@ -94,71 +94,91 @@ class TestMetrics:
         self.start_time = None
     
     def record_step(self, env, infos):
-        """记录一步的数据 / Record data for one step"""
+        """记录一步的数据（所有环境） / Record data for one step (all environments)"""
         # 获取机器人资产 / Get robot asset
         robot: Articulation = env.unwrapped.scene["robot"]
         
-        # 记录速度命令和实际速度 / Record velocity commands and actual velocities
+        # 获取环境数量 / Get number of environments
+        num_envs = robot.num_instances
+        
+        # 记录速度命令和实际速度（所有环境） / Record velocity commands and actual velocities (all environments)
         if "observations" in infos:
             obs_dict = infos["observations"]
             if "commands" in obs_dict:
-                cmd_vel = obs_dict["commands"].cpu().numpy()[0]  # [v_x, v_y, omega_z]
-                self.commanded_velocities.append(cmd_vel)
+                # 获取所有环境的速度命令 / Get velocity commands for all environments
+                cmd_vel_all = obs_dict["commands"].cpu().numpy()  # [num_envs, 3] = [v_x, v_y, omega_z]
+                self.commanded_velocities.append(cmd_vel_all)
         
-        # 实际速度 / Actual velocity
-        actual_vel = robot.data.root_lin_vel_b.cpu().numpy()[0]  # 基座坐标系下的速度
-        actual_ang_vel = robot.data.root_ang_vel_b.cpu().numpy()[0]  # 角速度
-        actual_vel_xy = actual_vel[:2]  # [v_x, v_y]
-        actual_ang_vel_z = actual_ang_vel[2]  # omega_z
-        self.actual_velocities.append([actual_vel_xy[0], actual_vel_xy[1], actual_ang_vel_z])
+        # 实际速度（所有环境） / Actual velocity (all environments)
+        actual_vel_all = robot.data.root_lin_vel_b.cpu().numpy()  # [num_envs, 3] 基座坐标系下的速度
+        actual_ang_vel_all = robot.data.root_ang_vel_b.cpu().numpy()  # [num_envs, 3] 角速度
+        actual_vel_xy_all = actual_vel_all[:, :2]  # [num_envs, 2] = [v_x, v_y]
+        actual_ang_vel_z_all = actual_ang_vel_all[:, 2]  # [num_envs] = omega_z
+        # 组合成 [num_envs, 3] 格式 / Combine into [num_envs, 3] format
+        actual_velocities_step = np.column_stack([
+            actual_vel_xy_all[:, 0],  # v_x
+            actual_vel_xy_all[:, 1],  # v_y
+            actual_ang_vel_z_all      # omega_z
+        ])
+        self.actual_velocities.append(actual_velocities_step)
         
-        # 计算速度跟踪误差 / Calculate velocity tracking error
+        # 计算速度跟踪误差（所有环境） / Calculate velocity tracking error (all environments)
         if len(self.commanded_velocities) > 0:
-            cmd = self.commanded_velocities[-1]
-            error = np.array([cmd[0] - actual_vel_xy[0], 
-                            cmd[1] - actual_vel_xy[1], 
-                            cmd[2] - actual_ang_vel_z])
-            self.velocity_errors.append(error)
+            cmd_all = self.commanded_velocities[-1]  # [num_envs, 3]
+            error_all = cmd_all - actual_velocities_step  # [num_envs, 3]
+            self.velocity_errors.append(error_all)
         
-        # 记录姿态 (Roll, Pitch) / Record orientation (Roll, Pitch)
-        # 使用投影重力来获取姿态信息（更简单且稳定） / Use projected gravity for orientation (simpler and more stable)
-        quat = robot.data.root_quat_w[0].cpu()
-        # 简化的Roll/Pitch计算（从四元数） / Simplified Roll/Pitch calculation (from quaternion)
-        w, x, y, z = quat[0], quat[1], quat[2], quat[3]
-        # 计算Roll (绕X轴) 和 Pitch (绕Y轴) / Calculate Roll (around X-axis) and Pitch (around Y-axis)
-        sinr_cosp = 2 * (w * x + y * z)
-        cosr_cosp = 1 - 2 * (x * x + y * y)
-        roll = np.arctan2(sinr_cosp, cosr_cosp)
+        # 记录姿态 (Roll, Pitch)（所有环境） / Record orientation (Roll, Pitch) (all environments)
+        quat_all = robot.data.root_quat_w.cpu().numpy()  # [num_envs, 4]
+        orientations_step = []
         
-        sinp = 2 * (w * y - z * x)
-        if abs(sinp) >= 1:
-            pitch = np.copysign(np.pi / 2, sinp)
-        else:
-            pitch = np.arcsin(sinp)
+        for i in range(num_envs):
+            w, x, y, z = quat_all[i, 0], quat_all[i, 1], quat_all[i, 2], quat_all[i, 3]
+            # 计算Roll (绕X轴) 和 Pitch (绕Y轴) / Calculate Roll (around X-axis) and Pitch (around Y-axis)
+            sinr_cosp = 2 * (w * x + y * z)
+            cosr_cosp = 1 - 2 * (x * x + y * y)
+            roll = np.arctan2(sinr_cosp, cosr_cosp)
+            
+            sinp = 2 * (w * y - z * x)
+            if abs(sinp) >= 1:
+                pitch = np.copysign(np.pi / 2, sinp)
+            else:
+                pitch = np.arcsin(sinp)
+            
+            orientations_step.append([roll.item(), pitch.item()])
         
-        self.base_orientations.append([roll.item(), pitch.item()])  # Roll, Pitch
+        self.base_orientations.append(np.array(orientations_step))  # [num_envs, 2]
         
-        # 记录位置 / Record position
-        pos = robot.data.root_pos_w.cpu().numpy()[0]
-        self.positions.append(pos)
+        # 记录位置（所有环境） / Record position (all environments)
+        pos_all = robot.data.root_pos_w.cpu().numpy()  # [num_envs, 3]
+        self.positions.append(pos_all)
         
-        # 检查是否存活（基座高度和姿态） / Check if alive (base height and orientation)
-        base_height = pos[2]
-        roll_abs = abs(roll.item())
-        pitch_abs = abs(pitch.item())
-        alive = (base_height > 0.3) and (roll_abs < 0.5) and (pitch_abs < 0.5)  # 阈值可调
-        self.is_alive.append(alive)
+        # 检查是否存活（所有环境） / Check if alive (all environments)
+        base_heights = pos_all[:, 2]  # [num_envs]
+        orientations_array = np.array(orientations_step)  # [num_envs, 2]
+        roll_abs = np.abs(orientations_array[:, 0])  # [num_envs]
+        pitch_abs = np.abs(orientations_array[:, 1])  # [num_envs]
+        
+        alive_all = (base_heights > 0.3) & (roll_abs < 0.5) & (pitch_abs < 0.5)  # [num_envs] 阈值可调
+        self.is_alive.append(alive_all)
         
         self.step_count += 1
     
     def compute_velocity_tracking_metrics(self) -> Dict:
-        """计算速度跟踪指标 / Compute velocity tracking metrics"""
+        """计算速度跟踪指标（所有环境平均） / Compute velocity tracking metrics (averaged over all environments)"""
         if len(self.velocity_errors) == 0:
             return {}
         
-        errors = np.array(self.velocity_errors)
-        mse = np.mean(errors ** 2, axis=0)  # 每个分量的MSE
-        mse_total = np.mean(np.sum(errors ** 2, axis=1))  # 总体MSE
+        # 将所有步骤和所有环境的数据合并 / Concatenate data from all steps and all environments
+        # errors: list of [num_envs, 3] arrays
+        errors_all = np.concatenate(self.velocity_errors, axis=0)  # [total_samples, 3]
+        
+        # 计算每个分量的MSE（所有环境平均） / Compute MSE for each component (averaged over all environments)
+        mse = np.mean(errors_all ** 2, axis=0)  # [3] = [mse_vx, mse_vy, mse_omega_z]
+        mse_total = np.mean(np.sum(errors_all ** 2, axis=1))  # 总体MSE
+        
+        # 计算总样本数（步数 × 环境数） / Calculate total samples (steps × num_envs)
+        total_samples = errors_all.shape[0]
         
         return {
             "mse_vx": float(mse[0]),
@@ -168,16 +188,21 @@ class TestMetrics:
             "rmse_vx": float(np.sqrt(mse[0])),
             "rmse_vy": float(np.sqrt(mse[1])),
             "rmse_omega_z": float(np.sqrt(mse[2])),
+            "total_samples": int(total_samples),  # 总样本数 / Total number of samples
         }
     
     def compute_stability_metrics(self) -> Dict:
-        """计算姿态稳定性指标 / Compute stability metrics"""
+        """计算姿态稳定性指标（所有环境平均） / Compute stability metrics (averaged over all environments)"""
         if len(self.base_orientations) == 0:
             return {}
         
-        orientations = np.array(self.base_orientations)
-        roll = orientations[:, 0]
-        pitch = orientations[:, 1]
+        # 将所有步骤和所有环境的数据合并 / Concatenate data from all steps and all environments
+        # orientations: list of [num_envs, 2] arrays
+        orientations_all = np.concatenate(self.base_orientations, axis=0)  # [total_samples, 2]
+        roll = orientations_all[:, 0]  # [total_samples]
+        pitch = orientations_all[:, 1]  # [total_samples]
+        
+        total_samples = orientations_all.shape[0]
         
         return {
             "roll_mean": float(np.mean(np.abs(roll))),
@@ -186,21 +211,31 @@ class TestMetrics:
             "pitch_mean": float(np.mean(np.abs(pitch))),
             "pitch_std": float(np.std(pitch)),
             "pitch_max": float(np.max(np.abs(pitch))),
+            "total_samples": int(total_samples),  # 总样本数 / Total number of samples
         }
     
     def compute_survival_metrics(self) -> Dict:
-        """计算存活率指标 / Compute survival metrics"""
+        """计算存活率指标（所有环境平均） / Compute survival metrics (averaged over all environments)"""
         if len(self.is_alive) == 0:
             return {}
         
-        alive_array = np.array(self.is_alive)
-        survival_rate = np.mean(alive_array)
-        consecutive_alive = self._max_consecutive(alive_array, True)
+        # 将所有步骤和所有环境的数据合并 / Concatenate data from all steps and all environments
+        # is_alive: list of [num_envs] boolean arrays
+        alive_array_all = np.concatenate(self.is_alive, axis=0)  # [total_samples]
+        survival_rate = np.mean(alive_array_all)
+        
+        # 计算最大连续存活步数（对于所有环境的平均值，按步骤计算） / Compute max consecutive alive (average across environments per step)
+        # 首先计算每个步骤的平均存活率 / First compute average survival rate per step
+        alive_per_step = np.array([np.mean(step_alive) for step_alive in self.is_alive])
+        consecutive_alive = self._max_consecutive(alive_per_step >= 0.5, True)
+        
+        total_samples = alive_array_all.shape[0]
         
         return {
             "survival_rate": float(survival_rate),
             "total_steps": len(self.is_alive),
-            "alive_steps": int(np.sum(alive_array)),
+            "total_samples": int(total_samples),  # 总样本数（步数 × 环境数） / Total samples (steps × num_envs)
+            "alive_steps": int(np.sum(alive_array_all)),
             "max_consecutive_alive": int(consecutive_alive),
         }
     
@@ -372,6 +407,8 @@ def test_velocity_tracking(env, policy, encoder, metrics: TestMetrics, duration:
     print(f"  存活率: {survival_metrics.get('survival_rate', 0)*100:.2f}%")
     print(f"  总步数: {survival_metrics.get('total_steps', 0)}")
     print(f"  存活步数: {survival_metrics.get('alive_steps', 0)}")
+    print(f"\n样本统计:")
+    print(f"  总样本数: {velocity_metrics.get('total_samples', 0)} (步数 × 环境数)")
     print(f"{'='*60}\n")
     
     return {**velocity_metrics, **stability_metrics, **survival_metrics}
@@ -437,12 +474,14 @@ def test_disturbance_rejection(env, policy, encoder, metrics: TestMetrics, durat
             # 记录数据 / Record data
             metrics.record_step(env, infos)
             
-            # 检查恢复 / Check recovery
+            # 检查恢复（所有环境的平均姿态） / Check recovery (average orientation across all environments)
             if recovery_start_step is not None and step_count > recovery_start_step:
                 # 简单恢复判断：姿态稳定 / Simple recovery check: stable orientation
                 if len(metrics.base_orientations) >= 2:
-                    current_orient = np.array(metrics.base_orientations[-1])
-                    if np.max(np.abs(current_orient)) < 0.1:  # 阈值可调
+                    current_orient_all = metrics.base_orientations[-1]  # [num_envs, 2]
+                    # 计算所有环境的平均姿态角度 / Compute average orientation angle across all environments
+                    avg_orient = np.mean(np.abs(current_orient_all), axis=0)  # [2] = [avg_roll, avg_pitch]
+                    if np.max(avg_orient) < 0.1:  # 阈值可调
                         recovery_time = (step_count - recovery_start_step) * env.unwrapped.step_dt
                         metrics.recovery_times.append(recovery_time)
                         recovery_start_step = None
@@ -467,6 +506,7 @@ def test_disturbance_rejection(env, policy, encoder, metrics: TestMetrics, durat
     
     print(f"\n存活率:")
     print(f"  存活率: {survival_metrics.get('survival_rate', 0)*100:.2f}%")
+    print(f"  总样本数: {survival_metrics.get('total_samples', 0)} (步数 × 环境数)")
     print(f"{'='*60}\n")
     
     return {**disturbance_metrics, **survival_metrics}
@@ -520,39 +560,58 @@ def test_terrain_traversal(env, policy, encoder, metrics: TestMetrics, duration:
             # 记录数据 / Record data
             metrics.record_step(env, infos)
             
-            # 记录初始位置 / Record initial position
+            # 记录初始位置（所有环境的平均位置） / Record initial position (average across all environments)
             if initial_pos is None and len(metrics.positions) > 0:
-                initial_pos = np.array(metrics.positions[0])
+                initial_pos_all = metrics.positions[0]  # [num_envs, 3]
+                initial_pos = np.mean(initial_pos_all, axis=0)  # [3] 所有环境的平均初始位置
             
             step_count += 1
             if step_count % 100 == 0:
                 elapsed = time.time() - metrics.start_time
-                if len(metrics.positions) > 0:
-                    current_pos = np.array(metrics.positions[-1])
-                    distance = np.linalg.norm(current_pos[:2] - initial_pos[:2]) if initial_pos is not None else 0
-                    print(f"进度: {elapsed:.1f}/{duration:.1f}秒, 步数: {step_count}, 前进距离: {distance:.2f}m / Progress: {elapsed:.1f}/{duration:.1f}s, Steps: {step_count}, Distance: {distance:.2f}m")
+                if len(metrics.positions) > 0 and initial_pos is not None:
+                    current_pos_all = metrics.positions[-1]  # [num_envs, 3]
+                    current_pos_avg = np.mean(current_pos_all, axis=0)  # [3] 所有环境的平均当前位置
+                    # 计算所有环境的前进距离，然后取平均 / Compute distance for all envs, then average
+                    distances = np.linalg.norm(current_pos_all[:, :2] - initial_pos[:2], axis=1)  # [num_envs]
+                    avg_distance = np.mean(distances)
+                    max_distance = np.max(distances)
+                    print(f"进度: {elapsed:.1f}/{duration:.1f}秒, 步数: {step_count}, 平均前进距离: {avg_distance:.2f}m (最大: {max_distance:.2f}m) / Progress: {elapsed:.1f}/{duration:.1f}s, Steps: {step_count}, Avg Distance: {avg_distance:.2f}m (Max: {max_distance:.2f}m)")
     
     # 计算指标 / Compute metrics
     print(f"\n计算测试指标... / Computing test metrics...")
     survival_metrics = metrics.compute_survival_metrics()
     
-    # 计算前进距离 / Compute traversal distance
+    # 计算前进距离（所有环境的平均和最大） / Compute traversal distance (average and max across all environments)
     if len(metrics.positions) > 0 and initial_pos is not None:
-        final_pos = np.array(metrics.positions[-1])
-        distance_traveled = np.linalg.norm(final_pos[:2] - initial_pos[:2])
+        final_pos_all = metrics.positions[-1]  # [num_envs, 3]
+        # 计算每个环境的前进距离 / Compute distance for each environment
+        distances = np.linalg.norm(final_pos_all[:, :2] - initial_pos[:2], axis=1)  # [num_envs]
+        distance_traveled_avg = np.mean(distances)  # 平均前进距离
+        distance_traveled_max = np.max(distances)   # 最大前进距离
+        distance_traveled_min = np.min(distances)   # 最小前进距离
     else:
-        distance_traveled = 0.0
+        distance_traveled_avg = 0.0
+        distance_traveled_max = 0.0
+        distance_traveled_min = 0.0
     
     print(f"\n{'='*60}")
     print("复杂地形测试结果 / Terrain Traversal Test Results")
     print(f"{'='*60}")
     print(f"通过情况:")
     print(f"  存活率: {survival_metrics.get('survival_rate', 0)*100:.2f}%")
-    print(f"  前进距离: {distance_traveled:.2f}m")
+    print(f"  前进距离 (平均): {distance_traveled_avg:.2f}m")
+    print(f"  前进距离 (最大): {distance_traveled_max:.2f}m")
+    print(f"  前进距离 (最小): {distance_traveled_min:.2f}m")
     print(f"  总步数: {survival_metrics.get('total_steps', 0)}")
+    print(f"  总样本数: {survival_metrics.get('total_samples', 0)}")
     print(f"{'='*60}\n")
     
-    return {**survival_metrics, "distance_traveled": distance_traveled}
+    return {
+        **survival_metrics, 
+        "distance_traveled_avg": distance_traveled_avg,
+        "distance_traveled_max": distance_traveled_max,
+        "distance_traveled_min": distance_traveled_min,
+    }
 
 
 def main():
