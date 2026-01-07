@@ -81,6 +81,21 @@ class PFBlindFlatEnvCfg(PFBaseEnvCfg):
         self.observations.critic.heights = None
 
         self.curriculum.terrain_levels = None
+        
+        # 增强抗冲击训练 - 增加扰动频率和强度 / Enhance impact resistance training - increase disturbance frequency and intensity
+        # 减小间隔时间，增加扰动频率 / Reduce interval time, increase disturbance frequency
+        self.events.push_robot.interval_range_s = (3.0, 6.0)  # 从 (10.0, 15.0) 减少到 (3.0, 6.0)
+        # 增加扰动概率 / Increase disturbance probability
+        self.events.push_robot.params["probability"] = 0.05  # 从 0.005 增加到 0.05 (10倍)
+        # 可以适当增加力的范围以增强抗冲击能力 / Can increase force range to enhance impact resistance
+        # self.events.push_robot.params["force_range"]["x"] = (-1000.0, 1000.0)  # 可选：进一步增加
+        # self.events.push_robot.params["force_range"]["y"] = (-1000.0, 1000.0)
+        
+        # 增强抗冲击相关奖励权重 / Enhance impact resistance related reward weights
+        # 保持平衡奖励权重（抗冲击的关键） / Keep balance reward weight (key for impact resistance)
+        self.rewards.keep_balance.weight = 2.0  # 从 1.0 增加到 3.0
+        # 姿态稳定性奖励 / Orientation stability reward
+        self.rewards.pen_flat_orientation.weight = -12.0  # 从 -10.0 增加到 -15.0 (更严格)
 
 
 @configclass
