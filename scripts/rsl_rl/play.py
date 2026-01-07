@@ -12,7 +12,7 @@ import cli_args  # isort: skip
 # 添加argparse参数 / Add argparse arguments
 parser = argparse.ArgumentParser(description="Train an RL agent with RSL-RL.")
 parser.add_argument("--video", action="store_true", default=False, help="Record videos during training.")
-parser.add_argument("--video_length", type=int, default=200, help="Length of the recorded video (in steps).")
+parser.add_argument("--video_length", type=int, default=1000, help="Length of the recorded video (in steps).")
 parser.add_argument(
     "--disable_fabric", action="store_true", default=False, help="Disable fabric and use USD I/O operations."
 )
@@ -71,18 +71,29 @@ def main():
     else:
         resume_path = args_cli.checkpoint_path
     log_dir = os.path.dirname(resume_path)
+    
+    # 创建输出目录 / Create output directory
+    # 从checkpoint路径提取实验名和运行名 / Extract experiment name and run name from checkpoint path
+    checkpoint_basename = os.path.basename(os.path.dirname(resume_path))
+    output_dir = os.path.join("output", "play", checkpoint_basename)
+    os.makedirs(output_dir, exist_ok=True)
+    print(f"[INFO] Output will be saved to: {output_dir}")
 
     # 创建isaac环境 / Create isaac environment
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
 
+    video_folder = None
     if args_cli.video:
+        video_folder = os.path.join(output_dir, "videos")
+        os.makedirs(video_folder, exist_ok=True)  # 确保视频目录存在 / Ensure video directory exists
         video_kwargs = {
-            "video_folder": os.path.join(log_dir, "videos", "play"),
+            "video_folder": video_folder,
             "step_trigger": lambda step: step == 0,
             "video_length": args_cli.video_length,
             "disable_logger": True,
         }
-        print("[INFO] Recording videos during training.")
+        print("[INFO] Recording videos during playback.")
+        print(f"[INFO] Video will be saved to: {video_folder}")
         print_dict(video_kwargs, nesting=4)
         env = gym.wrappers.RecordVideo(env, **video_kwargs)
 
@@ -103,7 +114,8 @@ def main():
 
      # 导出策略到onnx / Export policy to onnx
     if EXPORT_POLICY:
-        export_model_dir = os.path.join(os.path.dirname(resume_path), "exported")
+        export_model_dir = os.path.join(output_dir, "exported")
+        os.makedirs(export_model_dir, exist_ok=True)  # 确保导出目录存在 / Ensure export directory exists
         export_policy_as_jit(
             ppo_runner.alg.actor_critic, export_model_dir
         )
@@ -126,20 +138,34 @@ def main():
     obs_history = obs_history.flatten(start_dim=1)
     commands = obs_dict["observations"].get("commands") 
     # simulate environment
-    while simulation_app.is_running():
-        # run everything in inference mode
-        with torch.inference_mode():
-            # agent stepping
-            est = encoder(obs_history)
-            actions = policy(torch.cat((est, obs, commands), dim=-1).detach())
-            # env stepping
-            obs, _, _, infos = env.step(actions)
-            obs_history = infos["observations"].get("obsHistory")
-            obs_history = obs_history.flatten(start_dim=1)
-            commands = infos["observations"].get("commands") 
-
-    # close the simulator
-    env.close()
+    step_count = 0
+    try:
+        while simulation_app.is_running():
+            # run everything in inference mode
+            with torch.inference_mode():
+                # agent stepping
+                est = encoder(obs_history)
+                actions = policy(torch.cat((est, obs, commands), dim=-1).detach())
+                # env stepping
+                obs, _, _, infos = env.step(actions)
+                obs_history = infos["observations"].get("obsHistory")
+                obs_history = obs_history.flatten(start_dim=1)
+                commands = infos["observations"].get("commands") 
+                step_count += 1
+                
+                # 每100步打印一次进度 / Print progress every 100 steps
+                if step_count % 100 == 0:
+                    print(f"[INFO] Playback step: {step_count}")
+    except KeyboardInterrupt:
+        print("[INFO] Interrupted by user.")
+    finally:
+        # close the simulator (RecordVideo 会在 env.close() 时自动保存视频)
+        # Close simulator (RecordVideo will automatically save video when env.close() is called)
+        env.close()
+        print(f"[INFO] Environment closed after {step_count} steps.")
+        if args_cli.video and video_folder:
+            print(f"[INFO] Video should be saved to: {video_folder}")
+            print(f"[INFO] Please check for rl-video-step-0.mp4 in the video folder.")
 
 
 if __name__ == "__main__":

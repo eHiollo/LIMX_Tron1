@@ -180,12 +180,7 @@ class ObservarionsCfg:
             func=mdp.get_gait_command, 
             params={"command_name": "gait_command"}  # 步态命令 / Gait command
         )
-        
-        # 速度命令 / Velocity commands
-        velocity_commands = ObsTerm(
-            func=mdp.generated_commands, 
-            params={"command_name": "base_velocity"}
-        )
+
 
         def __post_init__(self):
             self.enable_corruption = True      # 启用观测损坏 / Enable observation corruption
@@ -210,11 +205,6 @@ class ObservarionsCfg:
         gait_phase = ObsTerm(func=mdp.get_gait_phase)
         gait_command = ObsTerm(func=mdp.get_gait_command, params={"command_name": "gait_command"})
         
-        # 速度命令 / Velocity commands
-        velocity_commands = ObsTerm(
-            func=mdp.generated_commands, 
-            params={"command_name": "base_velocity"}
-        )
 
         def __post_init__(self):
             self.enable_corruption = True
@@ -239,11 +229,6 @@ class ObservarionsCfg:
         gait_phase = ObsTerm(func=mdp.get_gait_phase)
         gait_command = ObsTerm(func=mdp.get_gait_command, params={"command_name": "gait_command"})
 
-        # 速度命令 / Velocity commands
-        velocity_commands = ObsTerm(
-            func=mdp.generated_commands, 
-            params={"command_name": "base_velocity"}
-        )
 
         heights = ObsTerm(func=mdp.height_scan,params={"sensor_cfg": SceneEntityCfg("height_scanner")})
         
@@ -271,12 +256,8 @@ class ObservarionsCfg:
 
     @configclass
     class CommandsObsCfg(ObsGroup):
-        """命令观测配置 / Commands observation configuration"""
-        velocity_commands = ObsTerm(
-            func=mdp.generated_commands, 
-            params={"command_name": "base_velocity"}  # 速度命令 / Velocity commands
-        )
-    
+        velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
+
     policy: PolicyCfg = PolicyCfg()
     critic: CriticCfg = CriticCfg()
     commands: CommandsObsCfg = CommandsObsCfg()

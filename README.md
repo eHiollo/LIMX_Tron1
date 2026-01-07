@@ -1,3 +1,49 @@
+wjy 各种启动命令
+-------------train-----------
+接着训练
+ python3 scripts/rsl_rl/train.py --task Isaac-Limx-PF-Blind-Stairs-v0  --num_envs 3000 --max_iterations 50000     --resume True   --headless --run_name staris_env --checkpoint_path logs/rsl_rl/pf_tron_1a_flat/2026-01-07_02-30-46_rough_env/model_4600.pt
+ 从头训练
+ python3 scripts/rsl_rl/train.py --task Isaac-Limx-PF-Blind-Flat-v0  --num_envs 4000 --max_iterations 50000    --headless --run_name flat_env 
+
+
+
+
+ ------------test-------------
+
+ python3 scripts/rsl_rl/test.py     --headless    --task=Isaac-Limx-PF-Blind-Flat-Play-v0     --video  --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-07_12-47-51_staris_env/model_1000.pt
+
+checkpoint：
+1.6 从五千步又训了两万步：
+logs/rsl_rl/pf_tron_1a_flat/2026-01-06_01-37-24_continue_from_5000/model_20000.pt
+1.6 继续训练，已经达到收敛
+logs/rsl_rl/pf_tron_1a_flat/2026-01-06_10-21-42_continue_from_20000_10_6/model_40000
+1.7 复杂地形4600
+logs/rsl_rl/pf_tron_1a_flat/2026-01-07_02-30-46_rough_env/model_4600.pt
+1.7 楼梯1000
+logs/rsl_rl/pf_tron_1a_flat/2026-01-07_12-47-51_staris_env/model_1000.pt
+1.7 重训楼梯
+logs/rsl_rl/pf_tron_1a_flat/2026-01-07_16-16-55_staris_env/model_1000.pt 用不了
+
+  
+
+ ------------play-------------
+python3 scripts/rsl_rl/play.py --task=Isaac-Limx-PF-Blind-Flat-Play-v0 --headless --video --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-07_20-51-02_flat_env/model_600.pt
+
+
+
+
+
+
+
+----------启动tensorboard------------
+#服务器启动tensorboard
+tensorboard --logdir logs/rsl_rl/pf_tron_1a_flat --port 6006 --host 0.0.0.0
+#本地6007端口连接到服务器端的6006端口（自己电脑窗口运行）
+ssh -p 53526 -L 6007:localhost:6006 root@101.126.139.122
+#本地访问6007端口
+http://localhost:6007
+
+
 # 双足机器人强化学习运动学习项目 / Bipedal Robot RL Locomotion Learning Project
 
 [![IsaacSim](https://img.shields.io/badge/IsaacSim-4.5.0-silver.svg)](https://docs.omniverse.nvidia.com/isaacsim/latest/overview.html)
@@ -96,7 +142,7 @@ python3 scripts/rsl_rl/train.py --task=Isaac-Limx-PF-Blind-Flat-v0 --headless
   To play a trained model:
 
 ```bash
-python3 scripts/rsl_rl/play.py --task=Isaac-Limx-PF-Blind-Flat-Play-v0 --checkpoint_path=path/to/checkpoint
+python3 scripts/rsl_rl/play.py --task=Isaac-Limx-PF-Blind-Flat-Play-v0 --headless --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-06_10-21-42_continue_from_20000_10_6/model_40000.pt
 ```
 
 - 以下参数可用于自定义运行：
