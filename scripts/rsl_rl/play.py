@@ -161,11 +161,23 @@ def main():
     finally:
         # close the simulator (RecordVideo 会在 env.close() 时自动保存视频)
         # Close simulator (RecordVideo will automatically save video when env.close() is called)
+        print(f"[INFO] Closing environment after {step_count} steps...")
         env.close()
-        print(f"[INFO] Environment closed after {step_count} steps.")
+        print(f"[INFO] Environment closed.")
+        
         if args_cli.video and video_folder:
             print(f"[INFO] Video should be saved to: {video_folder}")
-            print(f"[INFO] Please check for rl-video-step-0.mp4 in the video folder.")
+            # 检查视频文件是否生成 / Check if video file was created
+            import glob
+            video_files = glob.glob(os.path.join(video_folder, "*.mp4"))
+            if video_files:
+                print(f"[INFO] ✓ Video file(s) found:")
+                for vf in video_files:
+                    file_size = os.path.getsize(vf) / (1024 * 1024)  # MB
+                    print(f"     - {os.path.basename(vf)} ({file_size:.2f} MB)")
+            else:
+                print(f"[WARNING] ⚠ No video file found in {video_folder}")
+                print(f"[WARNING] Make sure you ran enough steps (>= {args_cli.video_length}) for video recording.")
 
 
 if __name__ == "__main__":

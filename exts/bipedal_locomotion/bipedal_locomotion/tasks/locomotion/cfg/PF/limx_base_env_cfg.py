@@ -404,10 +404,10 @@ class RewardsCfg:
 
     # tracking related rewards
     rew_lin_vel_xy = RewTerm(
-        func=mdp.track_lin_vel_xy_exp, weight=5.0, params={"command_name": "base_velocity", "std": math.sqrt(0.2)}
+        func=mdp.track_lin_vel_xy_exp, weight=7.0, params={"command_name": "base_velocity", "std": math.sqrt(0.2)}
     )
     rew_ang_vel_z = RewTerm(
-        func=mdp.track_ang_vel_z_exp, weight=3.0, params={"command_name": "base_velocity", "std": math.sqrt(0.2)}
+        func=mdp.track_ang_vel_z_exp, weight=4.0, params={"command_name": "base_velocity", "std": math.sqrt(0.2)}
     )
 
     # 调节相关奖励 / Regulation-related rewards
@@ -479,12 +479,12 @@ class RewardsCfg:
     # 步态奖励 / Gait reward
     test_gait_reward = RewTerm(
         func=mdp.GaitReward,                        # 步态奖励函数 / Gait reward function
-        weight=0.3,
+        weight=0.1,
         params={
             "tracking_contacts_shaped_force": -1.0,    # 接触力跟踪形状参数 / Contact force tracking shaping
             "tracking_contacts_shaped_vel": -1.0,      # 接触速度跟踪形状参数 / Contact velocity tracking shaping
-            "gait_force_sigma": 25.0,                  # 步态力标准差 / Gait force sigma
-            "gait_vel_sigma": 0.25,                    # 步态速度标准差 / Gait velocity sigma
+            "gait_force_sigma": 50.0,                  # 步态力标准差 / Gait force sigma
+            "gait_vel_sigma": 0.5,                    # 步态速度标准差 / Gait velocity sigma
             "kappa_gait_probs": 0.05,                  # 步态概率参数 / Gait probability parameter
             "command_name": "gait_command",            # 命令名称 / Command name
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names="foot_.*"),
