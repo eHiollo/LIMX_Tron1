@@ -12,10 +12,12 @@ logs/rsl_rl/pf_tron_1a_flat/2026-01-08_02-25-22_improv_z/model_800.pt
 logs/rsl_rl/pf_tron_1a_flat/2026-01-08_02-25-22_improv_z/model_1000.pt
 stairs
 logs/rsl_rl/pf_tron_1a_flat/2026-01-08_09-37-17_stairs/model_200.pt
+improve_gait
+logs/rsl_rl/pf_tron_1a_flat/2026-01-08_14-51-48_improve_gait/model_4400.pt
 -------------train-----------
 接着训练
 
- python3 scripts/rsl_rl/train.py --task Isaac-Limx-PF-Blind-Stairs-v0  --num_envs 1000 --max_iterations 50000     --resume True   --headless --run_name stairs --checkpoint_path logs/rsl_rl/pf_tron_1a_flat/2026-01-08_02-25-22_improv_z/model_800.pt
+ python3 scripts/rsl_rl/train.py --task Isaac-Limx-PF-Blind-Flat-v0  --num_envs 8000 --max_iterations 50000     --resume True   --headless --run_name improve_gait --checkpoint_path logs/rsl_rl/pf_tron_1a_flat/2026-01-08_02-25-22_improv_z/model_800.pt
 
 
 
@@ -46,7 +48,8 @@ logs/rsl_rl/pf_tron_1a_flat/2026-01-07_16-16-55_staris_env/model_1000.pt 用不�
   
 
  ------------play-------------
-python3 scripts/rsl_rl/play.py --task=Isaac-Limx-PF-Blind-Rough-Play-v0 --headless --video --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-08_02-25-22_improv_z/model_1000.pt
+python3 scripts/rsl_rl/play.py --task=Isaac-Limx-PF-Blind-Rough-Play-v0 --headless --video --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-08_14-51-48_improve_gait/model_4400.pt
+
 
 
 

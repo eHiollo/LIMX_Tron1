@@ -55,21 +55,22 @@ class PF_TRON1AFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     )
     # 使用MLP版本的PPO算法，支持历史观测
     # Use MLP version of PPO algorithm with history observation support
+    # 优化参数以提升步态稳定性和平滑性 / Optimized parameters for gait stability and smoothness
     algorithm = RslRlPpoAlgorithmMlpCfg(
         class_name="PPO",
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
-        clip_param=0.2,
-        entropy_coef=0.01,
-        num_learning_epochs=5,
-        num_mini_batches=4,
-        learning_rate=1.0e-3,
+        clip_param=0.15,              # 从0.2降低到0.15（更保守的策略更新，避免过度调整）
+        entropy_coef=0.005,           # 从0.01降低到0.005（减少探索噪声，使动作更确定）
+        num_learning_epochs=6,        # 从5增加到6（更多学习轮数，更好利用数据）
+        num_mini_batches=6,           # 从4增加到6（更小的批次，更稳定的梯度）
+        learning_rate=3.0e-4,         # 从5.0e-4降低到3.0e-4（更小的学习率，更精细的调整）
         schedule="adaptive",
         gamma=0.99,
         lam=0.95,
-        desired_kl=0.01,
-        max_grad_norm=1.0,
-        obs_history_len=10,   # 观测历史长度 / Observation history length
+        desired_kl=0.008,             # 从0.01降低到0.008（更严格的政策变化限制）
+        max_grad_norm=0.5,            # 从1.0降低到0.5（更严格的梯度裁剪，提高稳定性）
+        obs_history_len=10,           # 观测历史长度 / Observation history length
     )
 
     # 编码器配置 - 用于处理历史观测信息

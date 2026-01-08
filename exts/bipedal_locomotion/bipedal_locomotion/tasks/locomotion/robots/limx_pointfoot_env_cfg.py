@@ -91,11 +91,25 @@ class PFBlindFlatEnvCfg(PFBaseEnvCfg):
         # self.events.push_robot.params["force_range"]["x"] = (-1000.0, 1000.0)  # 可选：进一步增加
         # self.events.push_robot.params["force_range"]["y"] = (-1000.0, 1000.0)
         
-        # 增强抗冲击相关奖励权重 / Enhance impact resistance related reward weights
-        # 保持平衡奖励权重（抗冲击的关键） / Keep balance reward weight (key for impact resistance)
-        self.rewards.keep_balance.weight = 2.0  # 从 1.0 增加到 3.0
-        # 姿态稳定性奖励 / Orientation stability reward
-        self.rewards.pen_flat_orientation.weight = -12.0  # 从 -10.0 增加到 -15.0 (更严格)
+        # 优化步态稳定性和平滑性 - 解决"跳着走"和"不稳定"问题 / Optimize gait stability and smoothness - fix "hopping" and "unstable" issues
+        # 1. 增强高度稳定性 / Enhance height stability
+        self.rewards.pen_base_height.weight = -30.0  # 从 -20.0 增加到 -30.0（更严格的高度控制，减少跳跃）
+        # 2. 增强姿态稳定性 / Enhance orientation stability  
+        self.rewards.pen_flat_orientation.weight = -15.0  # 从 -10.0 增加到 -15.0（更严格的姿态要求）
+        # 3. 减少垂直速度（防止跳跃） / Reduce vertical velocity (prevent hopping)
+        self.rewards.pen_lin_vel_z.weight = -1.0  # 从 -0.5 增加到 -1.0（更严格惩罚垂直运动）
+        # 4. 增强着陆柔顺性 / Enhance landing softness
+        self.rewards.foot_landing_vel.weight = -0.5  # 从 -0.2 增加到 -0.5（减少砸地）
+        # 5. 增强动作平滑性 / Enhance action smoothness
+        self.rewards.pen_action_rate.weight = -0.05  # 从 -0.03 增加到 -0.05（减少动作突变）
+        self.rewards.pen_action_smoothness.weight = -0.08  # 从 -0.04 增加到 -0.08（更平滑的动作）
+        # 6. 增强关节平滑性 / Enhance joint smoothness
+        self.rewards.pen_joint_vel_l2.weight = -0.002  # 从 -0.001 增加到 -0.002（减少关节速度突变）
+        # 7. 保持平衡奖励（稳定站立） / Keep balance reward (stable standing)
+        self.rewards.keep_balance.weight = 3.0  # 从 1.0 增加到 3.0（增强稳定性优先）
+        # 8. 适度降低速度跟踪权重（稳定性优先于速度） / Slightly reduce velocity tracking weight (stability over speed)
+        self.rewards.rew_lin_vel_xy.weight = 5.0  # 从 7.0 降低到 5.0（减少为了追速度而跳跃）
+        self.rewards.rew_ang_vel_z.weight = 3.0  # 从 4.0 降低到 3.0
 
 
 @configclass
