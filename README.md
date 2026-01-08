@@ -81,9 +81,12 @@ This project provides multiple trained model weight files located in the `logs/r
 
 ### 推荐模型 / Recommended Models
 
+- **最佳模型（推荐用于所有演示和测试）/ Best Model (Recommended for all demos and tests)**:
   ```
   logs/rsl_rl/pf_tron_1a_flat/2026-01-08_14-51-48_improve_gait/model_4400.pt
   ```
+  该模型在平地、复杂地形和楼梯环境中都表现优异，具有良好的速度跟踪能力和稳定的步态表现。
+  This model performs excellently on flat ground, rough terrain, and stairs, with good velocity tracking capability and stable gait performance.
 
 
 导出的ONNX模型（用于部署）位于 `output/play/` 目录下，包括：
@@ -131,21 +134,25 @@ python3 scripts/rsl_rl/play.py \
 #### 复杂地形演示 / Rough Terrain Demo
 
 ```bash
+# 使用最佳模型进行复杂地形演示
+# Use the best model for rough terrain demonstration
 python3 scripts/rsl_rl/play.py \
     --task=Isaac-Limx-PF-Blind-Rough-Play-v0 \
     --headless \
     --video \
-    --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-08_01-02-13_rough_env1/model_400.pt
+    --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-08_14-51-48_improve_gait/model_4400.pt
 ```
 
 #### 楼梯演示 / Stair Climbing Demo
 
 ```bash
+# 使用最佳模型进行楼梯演示
+# Use the best model for stair climbing demonstration
 python3 scripts/rsl_rl/play.py \
     --task=Isaac-Limx-PF-Blind-Stair-Play-v0 \
     --headless \
     --video \
-    --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-08_09-37-17_stairs/model_200.pt
+    --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-08_14-51-48_improve_gait/model_4400.pt
 ```
 
 ### 步骤3：查看结果 / Step 3: View Results
@@ -266,7 +273,7 @@ python3 scripts/rsl_rl/test.py \
 python3 scripts/rsl_rl/test.py \
     --test_mode=terrain \
     --task=Isaac-Limx-PF-Blind-Rough-Play-v0 \
-    --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-08_01-02-13_rough_env1/model_400.pt \
+    --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-08_14-51-48_improve_gait/model_4400.pt \
     --video
 ```
 
