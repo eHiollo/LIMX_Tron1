@@ -114,18 +114,124 @@ class PFBlindFlatEnvCfg_PLAY(PFBaseEnvCfg_PLAY):
 # 双足机器人盲视粗糙环境 / Pointfoot Blind Rough Environment
 #############################
 
+import math
+from isaaclab.utils import configclass
+from bipedal_locomotion.tasks.locomotion import mdp
+
+
+# @configclass
+# class PFBlindRoughEnvCfg(PFBaseEnvCfg):
+#     """Blind Rough Env: 复杂地形 + 不输入高度观测（policy/critic 都不看 heights）"""
+
+#     def __post_init__(self):
+#         super().__post_init__()
+
+#         # -------------------------
+#         # 1) Blind：不使用高度扫描/高度观测
+#         # -------------------------
+#         self.scene.height_scanner = None
+#         self.observations.policy.heights = None
+#         self.observations.critic.heights = None
+
+#         # -------------------------
+#         # 2) Rough terrain：启用 generator
+#         # -------------------------
+#         self.scene.terrain.terrain_type = "generator"
+#         self.scene.terrain.terrain_generator = BLIND_ROUGH_TERRAINS_CFG
+
+#         # 不开启地形课程
+#         if hasattr(self, "curriculum") and hasattr(self.curriculum, "terrain_levels"):
+#             self.curriculum.terrain_levels = None
+
+#         # -------------------------
+#         # 3) 速度指令范围：rough 先收窄，稳了再放开
+#         # -------------------------
+#         self.commands.base_velocity.ranges = mdp.UniformVelocityCommandCfg.Ranges(
+#             lin_vel_x=(0.0, 0.6),         # 先练前进为主
+#             lin_vel_y=(-0.2, 0.2),        # 横向先小
+#             ang_vel_z=(-0.6, 0.6),        # 转向先小
+#             heading=(-math.pi, math.pi),
+#         )
+
+#         # -------------------------
+#         # 4) Reward 权重：只做小幅偏置（稳、落脚软、少抖）
+#         # -------------------------
+#         # 存活奖励更重要一点
+#         self.rewards.keep_balance.weight = 2.0            # 1.0 -> 2.0
+
+#         # rough 更容易 roll/pitch 摇，稍微更严格
+#         self.rewards.pen_flat_orientation.weight = -12.0  # -10 -> -12
+
+#         # 高度稍微更严格，减少“蹲-弹-跳”
+#         self.rewards.pen_base_height.weight = -22.0       # -20 -> -22
+
+#         # 落脚软一点（如果有这个项就改）
+#         if hasattr(self.rewards, "foot_landing_vel"):
+#             self.rewards.foot_landing_vel.weight = -0.25  # -0.2 -> -0.25
+
+#         # 平滑项只加一点点（你这个文件里是 pen_action_smoothness）
+#         if hasattr(self.rewards, "pen_action_smoothness"):
+#             self.rewards.pen_action_smoothness.weight = -0.05  # -0.04 -> -0.05
+
+#         # 追踪项 rough 初期别太追（稳了再加回去）
+#         self.rewards.rew_lin_vel_xy.weight = 5.0          # 7.0 -> 5.0
+#         self.rewards.rew_ang_vel_z.weight = 3.0           # 4.0 -> 3.0
+
+#         # yaw 漂移稍微更严格（有就改）
+#         if hasattr(self.rewards, "pen_yaw_drift"):
+#             self.rewards.pen_yaw_drift.weight = -0.25     # -0.2 -> -0.25
+
+
+#############################
+# 双足机器人盲视粗糙环境 / 修复抖动和速度追踪不稳
+#############################
 
 @configclass
 class PFBlindRoughEnvCfg(PFBaseEnvCfg):
     def __post_init__(self):
         super().__post_init__()
 
+        # blind：不要 height scanner
         self.scene.height_scanner = None
         self.observations.policy.heights = None
         self.observations.critic.heights = None
 
+        # rough terrain
         self.scene.terrain.terrain_type = "generator"
         self.scene.terrain.terrain_generator = BLIND_ROUGH_TERRAINS_CFG
+
+        # ✅（可选但推荐）开启地形课程
+        # 如果你原来 rough 把 curriculum 关了，这里就打开
+        # self.curriculum.terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
+        # 或者如果 base 里已经有了，就别覆盖 None
+
+        # ✅ 速度命令范围：rough 先收一点，稳定后再放开
+        self.commands.base_velocity.ranges.lin_vel_x = (-1.2, 1.2)
+        self.commands.base_velocity.ranges.lin_vel_y = (-0.8, 0.8)
+        self.commands.base_velocity.ranges.ang_vel_z = (-0.8, 0.8)
+
+        # ✅ 命令重采样别太快（减少急变导致的抖动）
+        self.commands.base_velocity.resampling_time_range = (1.0, 5.0)
+
+        
+        self.rewards.pen_action_rate.weight = -0.02
+        self.rewards.pen_action_smoothness.weight = -0.06
+        self.rewards.pen_joint_accel.weight = -5e-07
+        self.rewards.foot_landing_vel.weight = -0.35
+
+        # tracking reward：更重、更严格
+        self.rewards.rew_lin_vel_xy.weight = 8.0
+        self.rewards.rew_lin_vel_xy.params["std"] = math.sqrt(0.12)
+
+        # ✅ yaw 跟踪：优先加 drift 惩罚（更稳）
+        self.rewards.pen_yaw_drift.weight = -0.30
+        self.rewards.rew_ang_vel_z.weight = 5.0
+        
+
+        # （可选）如果你觉得转向还是跟不住，再加一点 tracking
+        # self.rewards.rew_ang_vel_z.weight = 5.0
+
+
 
 
 @configclass
@@ -162,7 +268,7 @@ class PFBlindStairEnvCfg(PFBaseEnvCfg):
         self.observations.critic.heights = None
 
         # 调整速度命令范围以适应楼梯环境 / Adjust velocity command ranges for stairs environment
-        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)      # 前进速度：0.5-1.0 m/s / Forward velocity: 0.5-1.0 m/s
+        self.commands.base_velocity.ranges.lin_vel_x = (0, 0.3)      # 前进速度：0.5-1.0 m/s / Forward velocity: 0.5-1.0 m/s
         self.commands.base_velocity.ranges.lin_vel_y = (-0.0, 0.0)     # 横向速度：0（仅直行）/ Lateral velocity: 0 (straight only)
         self.commands.base_velocity.ranges.ang_vel_z = (-math.pi / 6, math.pi / 6)  # 转向：±30度 / Turning: ±30 degrees
 

@@ -1,7 +1,24 @@
 wjy 各种启动命令
+
+-------------checkpoints-----------
+flat_env2
+logs/rsl_rl/pf_tron_1a_flat/2026-01-07_22-03-54_flat_env2/model_1400.pt
+dist_env1
+logs/rsl_rl/pf_tron_1a_flat/2026-01-07_23-53-16_dist_env1/model_1000.pt
+rough_env
+logs/rsl_rl/pf_tron_1a_flat/2026-01-08_01-02-13_rough_env1/model_400.pt
+improv_z
+logs/rsl_rl/pf_tron_1a_flat/2026-01-08_02-25-22_improv_z/model_800.pt
+logs/rsl_rl/pf_tron_1a_flat/2026-01-08_02-25-22_improv_z/model_1000.pt
+stairs
+logs/rsl_rl/pf_tron_1a_flat/2026-01-08_09-37-17_stairs/model_200.pt
 -------------train-----------
 接着训练
- python3 scripts/rsl_rl/train.py --task Isaac-Limx-PF-Blind-Stairs-v0  --num_envs 3000 --max_iterations 50000     --resume True   --headless --run_name staris_env --checkpoint_path logs/rsl_rl/pf_tron_1a_flat/2026-01-07_02-30-46_rough_env/model_4600.pt
+
+ python3 scripts/rsl_rl/train.py --task Isaac-Limx-PF-Blind-Stairs-v0  --num_envs 1000 --max_iterations 50000     --resume True   --headless --run_name stairs --checkpoint_path logs/rsl_rl/pf_tron_1a_flat/2026-01-08_02-25-22_improv_z/model_800.pt
+
+
+
  从头训练
  python3 scripts/rsl_rl/train.py --task Isaac-Limx-PF-Blind-Flat-v0  --num_envs 4000 --max_iterations 50000    --headless --run_name flat_env 
 
@@ -10,7 +27,9 @@ wjy 各种启动命令
 
  ------------test-------------
 
- python3 scripts/rsl_rl/test.py     --headless    --task=Isaac-Limx-PF-Blind-Flat-Play-v0     --video  --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-07_12-47-51_staris_env/model_1000.pt
+ python3 scripts/rsl_rl/test.py     --headless    --task=Isaac-Limx-PF-Blind-Rough-Play-v0     --video  --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-08_01-02-13_rough_env1/model_400.pt
+
+
 
 checkpoint：
 1.6 从五千步又训了两万步：
@@ -27,7 +46,11 @@ logs/rsl_rl/pf_tron_1a_flat/2026-01-07_16-16-55_staris_env/model_1000.pt 用不�
   
 
  ------------play-------------
-python3 scripts/rsl_rl/play.py --task=Isaac-Limx-PF-Blind-Flat-Play-v0 --headless --video --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-07_20-51-02_flat_env/model_600.pt
+python3 scripts/rsl_rl/play.py --task=Isaac-Limx-PF-Blind-Rough-Play-v0 --headless --video --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-08_02-25-22_improv_z/model_1000.pt
+
+
+
+
 
 
 
