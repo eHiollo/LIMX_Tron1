@@ -22,7 +22,6 @@
 **/logs/*
 **/recordings/*
 **/outputs/*
-**/videos/*
 **/wandb/*
 **/.neptune/*
 docker/artifacts/
