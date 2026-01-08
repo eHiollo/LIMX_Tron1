@@ -7,7 +7,7 @@ import sys
 
 from isaaclab.app import AppLauncher
 
-# local imports
+# 本地导入 / Local imports
 import cli_args  # isort: skip
 
 # 添加argparse参数 / Add argparse arguments
@@ -22,20 +22,20 @@ parser.add_argument("--task", type=str, default=None, help="Name of the task.")
 parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment")
 parser.add_argument("--checkpoint_path", type=str, default=None, help="Relative path to checkpoint file.")
 
-# append RSL-RL cli arguments
+# 添加RSL-RL命令行参数 / Append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
-# append AppLauncher cli args
+# 添加AppLauncher命令行参数 / Append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
 args_cli, hydra_args = parser.parse_known_args()
 
-# always enable cameras to record video
+# 如果录制视频则总是启用摄像头 / Always enable cameras to record video
 if args_cli.video:
     args_cli.enable_cameras = True
 
-# clear out sys.argv for Hydra
+# 为Hydra清空sys.argv / Clear out sys.argv for Hydra
 sys.argv = [sys.argv[0]] + hydra_args
 
-# launch omniverse app
+# 启动Omniverse应用 / Launch omniverse app
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
@@ -99,7 +99,7 @@ def main():
     # 创建isaac环境 / Create isaac environment
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
 
-    # wrap for video recording
+    # 包装环境以录制视频 / Wrap for video recording
     if args_cli.video:
         video_kwargs = {
             "video_folder": os.path.join(log_dir, "videos"),
@@ -142,15 +142,15 @@ def main():
     dump_pickle(os.path.join(log_dir, "params", "env.pkl"), env_cfg)
     dump_pickle(os.path.join(log_dir, "params", "agent.pkl"), agent_cfg)
 
-    # run training
+    # 运行训练 / Run training
     runner.learn(num_learning_iterations=agent_cfg.max_iterations, init_at_random_ep_len=True)
 
-    # close the simulator
+    # 关闭仿真器 / Close the simulator
     env.close()
 
 
 if __name__ == "__main__":
-    # run the main execution
+    # 运行主程序 / Run the main execution
     main()
-    # close sim app
+    # 关闭仿真应用 / Close sim app
     simulation_app.close()

@@ -1,75 +1,3 @@
-wjy 各种启动命令
-
--------------checkpoints-----------
-flat_env2
-logs/rsl_rl/pf_tron_1a_flat/2026-01-07_22-03-54_flat_env2/model_1400.pt
-dist_env1
-logs/rsl_rl/pf_tron_1a_flat/2026-01-07_23-53-16_dist_env1/model_1000.pt
-rough_env
-logs/rsl_rl/pf_tron_1a_flat/2026-01-08_01-02-13_rough_env1/model_400.pt
-improv_z
-logs/rsl_rl/pf_tron_1a_flat/2026-01-08_02-25-22_improv_z/model_800.pt
-logs/rsl_rl/pf_tron_1a_flat/2026-01-08_02-25-22_improv_z/model_1000.pt
-stairs
-logs/rsl_rl/pf_tron_1a_flat/2026-01-08_09-37-17_stairs/model_200.pt
-improve_gait
-logs/rsl_rl/pf_tron_1a_flat/2026-01-08_14-51-48_improve_gait/model_4400.pt
--------------train-----------
-接着训练
-
- python3 scripts/rsl_rl/train.py --task Isaac-Limx-PF-Blind-Flat-v0  --num_envs 8000 --max_iterations 50000     --resume True   --headless --run_name improve_gait --checkpoint_path logs/rsl_rl/pf_tron_1a_flat/2026-01-08_02-25-22_improv_z/model_800.pt
-
-
-
- 从头训练
- python3 scripts/rsl_rl/train.py --task Isaac-Limx-PF-Blind-Flat-v0  --num_envs 4000 --max_iterations 50000    --headless --run_name flat_env 
-
-
-
-
- ------------test-------------
-
- python3 scripts/rsl_rl/test.py     --headless    --task=Isaac-Limx-PF-Blind-Rough-Play-v0     --video  --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-08_01-02-13_rough_env1/model_400.pt
-
-
-
-checkpoint：
-1.6 从五千步又训了两万步：
-logs/rsl_rl/pf_tron_1a_flat/2026-01-06_01-37-24_continue_from_5000/model_20000.pt
-1.6 继续训练，已经达到收敛
-logs/rsl_rl/pf_tron_1a_flat/2026-01-06_10-21-42_continue_from_20000_10_6/model_40000
-1.7 复杂地形4600
-logs/rsl_rl/pf_tron_1a_flat/2026-01-07_02-30-46_rough_env/model_4600.pt
-1.7 楼梯1000
-logs/rsl_rl/pf_tron_1a_flat/2026-01-07_12-47-51_staris_env/model_1000.pt
-1.7 重训楼梯
-logs/rsl_rl/pf_tron_1a_flat/2026-01-07_16-16-55_staris_env/model_1000.pt 用不了
-
-  
-
- ------------play-------------
-python3 scripts/rsl_rl/play.py --task=Isaac-Limx-PF-Blind-Rough-Play-v0 --headless --video --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-08_14-51-48_improve_gait/model_4400.pt
-
-
-
-
-
-
-
-
-
-
-
-
-----------启动tensorboard------------
-#服务器启动tensorboard
-tensorboard --logdir logs/rsl_rl/pf_tron_1a_flat --port 6006 --host 0.0.0.0
-#本地6007端口连接到服务器端的6006端口（自己电脑窗口运行）
-ssh -p 53526 -L 6007:localhost:6006 root@101.126.139.122
-#本地访问6007端口
-http://localhost:6007
-
-
 # 双足机器人强化学习运动学习项目 / Bipedal Robot RL Locomotion Learning Project
 
 [![IsaacSim](https://img.shields.io/badge/IsaacSim-4.5.0-silver.svg)](https://docs.omniverse.nvidia.com/isaacsim/latest/overview.html)
@@ -145,37 +73,236 @@ To setup the IDE, please follow these instructions:
 
 - Replace the path in .vscode/settings.json with the Isaaclab and python paths used by the user. This way, when the user retrieves the official functions or variables of Isaaclab, they can directly jump into the definition of the configuration environment code.
 
-## 训练双足机器人智能体 / Training the bipedal robot agent
+## 模型文件说明 / Model Files
 
-- 使用`scripts/rsl_rl/train.py`脚本直接训练机器人，指定任务：
-  Use the `scripts/rsl_rl/train.py` script to train the robot directly, specifying the task:
+本项目提供了多个训练好的模型权重文件，位于 `logs/rsl_rl/pf_tron_1a_flat/` 目录下：
+
+This project provides multiple trained model weight files located in the `logs/rsl_rl/pf_tron_1a_flat/` directory:
+
+### 推荐模型 / Recommended Models
+
+  ```
+  logs/rsl_rl/pf_tron_1a_flat/2026-01-08_14-51-48_improve_gait/model_4400.pt
+  ```
+
+
+导出的ONNX模型（用于部署）位于 `output/play/` 目录下，包括：
+Exported ONNX models (for deployment) are located in the `output/play/` directory, including:
+
+- `output/play/2026-01-08_14-51-48_improve_gait/exported/policy.onnx`
+- `output/play/2026-01-08_14-51-48_improve_gait/exported/encoder.onnx`
+
+## 快速开始：复现演示结果 / Quick Start: Reproducing Demo Results
+
+### 步骤1：环境准备 / Step 1: Environment Setup
+
+确保已经按照上述"安装 / Installation"部分完成了环境配置。
+Make sure you have completed the environment setup according to the "Installation" section above.
 
 ```bash
-python3 scripts/rsl_rl/train.py --task=Isaac-Limx-PF-Blind-Flat-v0 --headless
+# 激活Isaac Lab环境 / Activate Isaac Lab environment
+conda activate isaaclab
+
+# 进入项目目录 / Enter project directory
+cd limxtron1lab-main
+
+# 安装扩展库 / Install extension library
+python -m pip install -e exts/bipedal_locomotion
 ```
 
-- 以下参数可用于自定义训练：
-  The following arguments can be used to customize the training:
-    * --headless: 以无渲染模式运行仿真 / Run the simulation in headless mode
-    * --num_envs: 要运行的并行环境数量 / Number of parallel environments to run
-    * --max_iterations: 最大训练迭代次数 / Maximum number of training iterations
-    * --save_interval: 保存模型的间隔 / Interval to save the model
-    * --seed: 随机数生成器的种子 / Seed for the random number generator
+### 步骤2：加载并运行模型 / Step 2: Load and Run Model
 
-## 运行训练好的模型 / Playing the trained model
-
-- 要运行训练好的模型：
-  To play a trained model:
+#### 平地行走演示 / Flat Ground Walking Demo
 
 ```bash
-python3 scripts/rsl_rl/play.py --task=Isaac-Limx-PF-Blind-Flat-Play-v0 --headless --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-06_10-21-42_continue_from_20000_10_6/model_40000.pt
+# 使用最佳模型进行演示（自动生成视频和导出ONNX）
+# Use the best model for demonstration (automatically generates video and exports ONNX)
+python3 scripts/rsl_rl/play.py \
+    --task=Isaac-Limx-PF-Blind-Flat-Play-v0 \
+    --headless \
+    --video \
+    --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-08_14-51-48_improve_gait/model_4400.pt
 ```
 
-- 以下参数可用于自定义运行：
-  The following arguments can be used to customize the playing:
-    * --num_envs: 要运行的并行环境数量 / Number of parallel environments to run
-    * --headless: 以无头模式运行仿真 / Run the simulation in headless mode
-    * --checkpoint_path: 要加载的检查点路径 / Path to the checkpoint to load
+**输出结果 / Output:**
+- 演示视频保存在: `output/play/2026-01-08_14-51-48_improve_gait/videos/rl-video-step-0.mp4`
+- 导出的ONNX模型保存在: `output/play/2026-01-08_14-51-48_improve_gait/exported/`
+
+#### 复杂地形演示 / Rough Terrain Demo
+
+```bash
+python3 scripts/rsl_rl/play.py \
+    --task=Isaac-Limx-PF-Blind-Rough-Play-v0 \
+    --headless \
+    --video \
+    --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-08_01-02-13_rough_env1/model_400.pt
+```
+
+#### 楼梯演示 / Stair Climbing Demo
+
+```bash
+python3 scripts/rsl_rl/play.py \
+    --task=Isaac-Limx-PF-Blind-Stair-Play-v0 \
+    --headless \
+    --video \
+    --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-08_09-37-17_stairs/model_200.pt
+```
+
+### 步骤3：查看结果 / Step 3: View Results
+
+- **视频文件**: 查看 `output/play/{实验名称}/videos/` 目录下的视频文件
+- **导出模型**: 查看 `output/play/{实验名称}/exported/` 目录下的ONNX模型文件
+
+- **Video files**: Check video files in the `output/play/{experiment_name}/videos/` directory
+- **Exported models**: Check ONNX model files in the `output/play/{experiment_name}/exported/` directory
+
+### 参数说明 / Parameter Description
+
+`play.py` 脚本的主要参数：
+Main parameters of the `play.py` script:
+
+- `--task`: 任务名称
+  - `Isaac-Limx-PF-Blind-Flat-Play-v0`: 平地环境 / Flat ground environment
+  - `Isaac-Limx-PF-Blind-Rough-Play-v0`: 复杂地形环境 / Rough terrain environment
+  - `Isaac-Limx-PF-Blind-Stair-Play-v0`: 楼梯环境 / Stair environment
+
+- `--checkpoint_path`: 模型权重文件路径（必需） / Path to model weight file (required)
+- `--headless`: 无界面模式运行 / Run in headless mode
+- `--video`: 录制演示视频 / Record demonstration video
+- `--video_length`: 视频长度（步数），默认1000步 / Video length (steps), default 1000
+- `--num_envs`: 并行环境数量，默认1 / Number of parallel environments, default 1
+
+## 训练双足机器人智能体 / Training the Bipedal Robot Agent
+
+### 从头开始训练 / Training from Scratch
+
+```bash
+# 平地行走训练 / Flat ground walking training
+python3 scripts/rsl_rl/train.py \
+    --task=Isaac-Limx-PF-Blind-Flat-v0 \
+    --num_envs=4000 \
+    --max_iterations=50000 \
+    --headless \
+    --run_name=flat_env
+```
+
+### 继续训练已有模型 / Resume Training from Existing Model
+
+```bash
+# 从已有checkpoint继续训练 / Resume training from existing checkpoint
+python3 scripts/rsl_rl/train.py \
+    --task=Isaac-Limx-PF-Blind-Flat-v0 \
+    --num_envs=8000 \
+    --max_iterations=50000 \
+    --resume=True \
+    --headless \
+    --run_name=continue_training \
+    --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-08_14-51-48_improve_gait/model_4400.pt
+```
+
+### 训练参数说明 / Training Parameters
+
+- `--task`: 训练任务名称
+  - `Isaac-Limx-PF-Blind-Flat-v0`: 平地训练 / Flat ground training
+  - `Isaac-Limx-PF-Blind-Rough-v0`: 复杂地形训练 / Rough terrain training
+  - `Isaac-Limx-PF-Blind-Stair-v0`: 楼梯训练 / Stair training
+
+- `--num_envs`: 并行环境数量（推荐4000-8000） / Number of parallel environments (recommended 4000-8000)
+- `--max_iterations`: 最大训练迭代次数 / Maximum training iterations
+- `--headless`: 无渲染模式训练（推荐用于服务器） / Headless training (recommended for servers)
+- `--run_name`: 训练运行名称，用于区分不同的训练实验 / Training run name for distinguishing different experiments
+- `--checkpoint_path`: 继续训练时的checkpoint路径 / Checkpoint path when resuming training
+- `--save_interval`: 保存模型的间隔（迭代次数） / Interval for saving models (iterations)
+
+### 监控训练进度 / Monitor Training Progress
+
+使用TensorBoard查看训练曲线：
+Use TensorBoard to view training curves:
+
+```bash
+# 启动TensorBoard服务器 / Start TensorBoard server
+tensorboard --logdir logs/rsl_rl/pf_tron_1a_flat --port 6006 --host 0.0.0.0
+
+# 本地通过SSH隧道访问 / Access via SSH tunnel locally
+ssh -L 6007:localhost:6006 user@your-server-ip
+ 然后在浏览器访问 http://localhost:6007
+```
+
+## 模型测试 / Model Testing
+
+项目提供了专门的测试脚本来评估模型性能，包括速度跟踪、抗干扰和地形适应性测试。
+The project provides dedicated test scripts to evaluate model performance, including velocity tracking, disturbance rejection, and terrain adaptability tests.
+
+### 运行完整测试套件 / Run Complete Test Suite
+
+```bash
+# 运行所有测试项目（速度跟踪、抗干扰、地形测试）
+# Run all test items (velocity tracking, disturbance rejection, terrain test)
+python3 scripts/rsl_rl/test.py \
+    --task=Isaac-Limx-PF-Blind-Flat-Play-v0 \
+    --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-08_14-51-48_improve_gait/model_4400.pt \
+    --video \
+    --headless
+```
+
+### 运行特定测试 / Run Specific Tests
+
+```bash
+# 仅速度跟踪测试 / Velocity tracking test only
+python3 scripts/rsl_rl/test.py \
+    --test_mode=velocity_tracking \
+    --task=Isaac-Limx-PF-Blind-Flat-Play-v0 \
+    --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-08_14-51-48_improve_gait/model_4400.pt \
+    --video
+
+# 仅抗干扰测试 / Disturbance rejection test only
+python3 scripts/rsl_rl/test.py \
+    --test_mode=disturbance \
+    --task=Isaac-Limx-PF-Blind-Flat-Play-v0 \
+    --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-08_14-51-48_improve_gait/model_4400.pt \
+    --video
+
+# 仅地形测试 / Terrain test only
+python3 scripts/rsl_rl/test.py \
+    --test_mode=terrain \
+    --task=Isaac-Limx-PF-Blind-Rough-Play-v0 \
+    --checkpoint_path=logs/rsl_rl/pf_tron_1a_flat/2026-01-08_01-02-13_rough_env1/model_400.pt \
+    --video
+```
+
+详细测试说明请参考 `scripts/rsl_rl/TEST_README.md`。
+For detailed test instructions, please refer to `scripts/rsl_rl/TEST_README.md`.
+
+## 项目配置文件说明 / Project Configuration Files
+
+本项目修改了以下关键配置文件：
+This project has modified the following key configuration files:
+
+### 环境配置 / Environment Configuration
+
+- **`exts/bipedal_locomotion/bipedal_locomotion/tasks/locomotion/cfg/PF/limx_base_env_cfg.py`**
+  - 基础环境配置，包括奖励函数、终止条件、观测空间等
+  - Base environment configuration, including reward functions, termination conditions, observation space, etc.
+
+- **`exts/bipedal_locomotion/bipedal_locomotion/tasks/locomotion/robots/limx_pointfoot_env_cfg.py`**
+  - 机器人特定环境配置，包括平地、复杂地形、楼梯等不同环境的配置
+  - Robot-specific environment configurations for flat ground, rough terrain, stairs, etc.
+
+- **`exts/bipedal_locomotion/bipedal_locomotion/tasks/locomotion/cfg/PF/terrains_cfg.py`**
+  - 地形生成配置，包括楼梯高度、坡度等参数
+  - Terrain generation configuration, including stair height, slope, etc.
+
+### 算法配置 / Algorithm Configuration
+
+- **`exts/bipedal_locomotion/bipedal_locomotion/tasks/locomotion/agents/limx_rsl_rl_ppo_cfg.py`**
+  - PPO算法参数配置，包括学习率、clip参数、KL散度等
+  - PPO algorithm parameter configuration, including learning rate, clip parameter, KL divergence, etc.
+
+### 主要脚本 / Main Scripts
+
+- **`scripts/rsl_rl/train.py`**: 训练脚本 / Training script
+- **`scripts/rsl_rl/play.py`**: 模型演示脚本（自动导出视频和ONNX模型）/ Model demonstration script (automatically exports videos and ONNX models)
+- **`scripts/rsl_rl/test.py`**: 模型测试评估脚本 / Model testing and evaluation script
 
 ## 在Mujoco中运行导出模型（仿真到仿真）/ Running exported model in mujoco (sim2sim)
 

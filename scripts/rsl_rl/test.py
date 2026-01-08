@@ -11,7 +11,7 @@ from typing import Dict, List, Tuple
 
 from isaaclab.app import AppLauncher
 
-# local imports
+# 本地导入 / Local imports
 import cli_args  # isort: skip
 
 # 添加argparse参数 / Add argparse arguments
@@ -38,9 +38,9 @@ parser.add_argument("--video", action="store_true", default=False,
 parser.add_argument("--seed", type=int, default=42,
                     help="Random seed for testing")
 
-# append RSL-RL cli arguments
+# 添加RSL-RL命令行参数 / Append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
-# append AppLauncher cli args
+# 添加AppLauncher命令行参数 / Append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 
@@ -54,11 +54,11 @@ if os.environ.get('SSH_CONNECTION') or os.environ.get('SSH_CLIENT') or os.enviro
 if args_cli.video:
     args_cli.enable_cameras = True
 
-# launch omniverse app
+# 启动Omniverse应用 / Launch omniverse app
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
-"""Rest everything follows."""
+"""其余代码继续 / Rest everything follows."""
 
 import gymnasium as gym
 from rsl_rl.runner import OnPolicyRunner
@@ -69,7 +69,7 @@ from isaaclab_rl.rsl_rl import RslRlVecEnvWrapper
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.assets import Articulation
 
-# Import extensions to set up environment tasks
+# 导入扩展以设置环境任务 / Import extensions to set up environment tasks
 import bipedal_locomotion  # noqa: F401
 from bipedal_locomotion.utils.wrappers.rsl_rl import RslRlPpoAlgorithmMlpCfg
 
@@ -289,11 +289,11 @@ def _create_test_env(task_name, env_cfg, enable_video, video_folder, test_name, 
         print(f"[INFO] Setting up video recording for {test_name} test: {video_kwargs['video_folder']}")
         env = gym.wrappers.RecordVideo(env, **video_kwargs)
     
-    # convert to single-agent instance if required by the RL algorithm
+    # 如果RL算法需要，转换为单智能体实例 / Convert to single-agent instance if required by the RL algorithm
     if isinstance(env.unwrapped, DirectMARLEnv):
         env = multi_agent_to_single_agent(env)
     
-    # wrap around environment for rsl-rl (RecordVideo must be before this)
+    # 为rsl-rl包装环境（RecordVideo必须在此之前） / Wrap around environment for rsl-rl (RecordVideo must be before this)
     env = RslRlVecEnvWrapper(env)
     
     return env
@@ -320,7 +320,7 @@ def apply_disturbance(env, force_range: Tuple[float, float], env_id: int = 0):
     
     # 应用到基座 / Apply to base
     env_ids = torch.tensor([env_id], device=robot.device)
-    body_ids = torch.tensor([0], device=robot.device)  # base_Link通常是第一个body
+    body_ids = torch.tensor([0], device=robot.device)  # base_Link通常是第一个body / base_Link is usually the first body
     
     robot.set_external_force_and_torque(forces, torques, env_ids=env_ids, body_ids=body_ids)
     
@@ -705,18 +705,15 @@ def main():
         print(f"[INFO] Setting up video recording: {video_base_folder}")
         test_env_base = gym.wrappers.RecordVideo(test_env_base, **video_kwargs)
     
-    # 包装为 RSL-RL 环境
-    # Wrap as RSL-RL environment
+    # 包装为RSL-RL环境 / Wrap as RSL-RL environment
     test_env = RslRlVecEnvWrapper(test_env_base)
     
-    # 加载模型
-    # Load model
+    # 加载模型 / Load model
     print(f"[INFO] Loading model from checkpoint...")
     ppo_runner = OnPolicyRunner(test_env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
     ppo_runner.load(resume_path)
     
-    # 获取训练好的策略用于推理
-    # Obtain the trained policy for inference
+    # 获取训练好的策略用于推理 / Obtain the trained policy for inference
     policy = ppo_runner.get_inference_policy(device=test_env.unwrapped.device)
     encoder = ppo_runner.get_inference_encoder(device=test_env.unwrapped.device)
     

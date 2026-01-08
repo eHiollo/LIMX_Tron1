@@ -1,0 +1,11 @@
+Checkpoint Selection Results
+======================================================================
+
+Best checkpoint: model_0.pt
+Full path: logs/rsl_rl/pf_tron_1a_flat/2026-01-07_22-03-54_flat_env2/model_0.pt
+
+All checkpoints (sorted by selection rules):
+----------------------------------------------------------------------
+Checkpoint                     Surv   MSE Total    Roll std   Pitch std  Orientation std
+----------------------------------------------------------------------
+model_0.pt                     100.0%     1.432276   0.088509   0.100409        0.094459

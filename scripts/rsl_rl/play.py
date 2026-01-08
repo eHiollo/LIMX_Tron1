@@ -21,16 +21,16 @@ parser.add_argument("--task", type=str, default=None, help="Name of the task.")
 parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment")
 parser.add_argument("--checkpoint_path", type=str, default=None, help="Relative path to checkpoint file.")
 
-# append RSL-RL cli arguments
+# 添加RSL-RL命令行参数 / Append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
-# append AppLauncher cli args
+# 添加AppLauncher命令行参数 / Append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 
 if args_cli.video:
     args_cli.enable_cameras = True
 
-# launch omniverse app
+# 启动Omniverse应用 / Launch omniverse app
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
@@ -97,18 +97,18 @@ def main():
         print_dict(video_kwargs, nesting=4)
         env = gym.wrappers.RecordVideo(env, **video_kwargs)
 
-    # convert to single-agent instance if required by the RL algorithm
+    # 如果RL算法需要，转换为单智能体实例 / Convert to single-agent instance if required by the RL algorithm
     if isinstance(env.unwrapped, DirectMARLEnv):
         env = multi_agent_to_single_agent(env)
 
-    # wrap around environment for rsl-rl
+    # 为rsl-rl包装环境 / Wrap around environment for rsl-rl
     env = RslRlVecEnvWrapper(env)
-    # load previously trained model
+    # 加载先前训练的模型 / Load previously trained model
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     ppo_runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
     ppo_runner.load(resume_path)
 
-    # obtain the trained policy for inference
+    # 获取训练好的策略用于推理 / Obtain the trained policy for inference
     policy = ppo_runner.get_inference_policy(device=env.unwrapped.device)
     encoder = ppo_runner.get_inference_encoder(device=env.unwrapped.device)
 
@@ -132,21 +132,21 @@ def main():
             "encoder",
             ppo_runner.alg.encoder.num_input_dim,
         )
-    # reset environment
+    # 重置环境 / Reset environment
     obs, obs_dict = env.get_observations()
     obs_history = obs_dict["observations"].get("obsHistory")
     obs_history = obs_history.flatten(start_dim=1)
     commands = obs_dict["observations"].get("commands") 
-    # simulate environment
+    # 仿真环境 / Simulate environment
     step_count = 0
     try:
         while simulation_app.is_running():
-            # run everything in inference mode
+            # 在推理模式下运行所有操作 / Run everything in inference mode
             with torch.inference_mode():
-                # agent stepping
+                # 智能体步进 / Agent stepping
                 est = encoder(obs_history)
                 actions = policy(torch.cat((est, obs, commands), dim=-1).detach())
-                # env stepping
+                # 环境步进 / Env stepping
                 obs, _, _, infos = env.step(actions)
                 obs_history = infos["observations"].get("obsHistory")
                 obs_history = obs_history.flatten(start_dim=1)
@@ -161,28 +161,16 @@ def main():
     finally:
         # close the simulator (RecordVideo 会在 env.close() 时自动保存视频)
         # Close simulator (RecordVideo will automatically save video when env.close() is called)
-        print(f"[INFO] Closing environment after {step_count} steps...")
         env.close()
-        print(f"[INFO] Environment closed.")
-        
+        print(f"[INFO] Environment closed after {step_count} steps.")
         if args_cli.video and video_folder:
             print(f"[INFO] Video should be saved to: {video_folder}")
-            # 检查视频文件是否生成 / Check if video file was created
-            import glob
-            video_files = glob.glob(os.path.join(video_folder, "*.mp4"))
-            if video_files:
-                print(f"[INFO] ✓ Video file(s) found:")
-                for vf in video_files:
-                    file_size = os.path.getsize(vf) / (1024 * 1024)  # MB
-                    print(f"     - {os.path.basename(vf)} ({file_size:.2f} MB)")
-            else:
-                print(f"[WARNING] ⚠ No video file found in {video_folder}")
-                print(f"[WARNING] Make sure you ran enough steps (>= {args_cli.video_length}) for video recording.")
+            print(f"[INFO] Please check for rl-video-step-0.mp4 in the video folder.")
 
 
 if __name__ == "__main__":
     EXPORT_POLICY = True
-    # run the main execution
+    # 运行主程序 / Run the main execution
     main()
-    # close sim app
+    # 关闭仿真应用 / Close sim app
     simulation_app.close()

@@ -1,0 +1,62 @@
+Test Results / 测试结果
+============================================================
+Test Date: 2026-01-07 22:31:13
+Checkpoint: logs/rsl_rl/pf_tron_1a_flat/2026-01-07_22-03-54_flat_env2/model_1200.pt
+Task: Isaac-Limx-PF-Blind-Flat-Play-v0
+Num Environments: 512
+Test Mode: all
+============================================================
+
+
+VELOCITY_TRACKING
+------------------------------------------------------------
+mse_vx: 0.143845
+mse_vy: 0.062007
+mse_omega_z: 0.089261
+mse_total: 0.295129
+rmse_vx: 0.379269
+rmse_vy: 0.249012
+rmse_omega_z: 0.298766
+total_samples: 78336
+roll_mean: 0.046926
+roll_std: 0.063253
+roll_max: 3.0966
+pitch_mean: 0.044867
+pitch_std: 0.061246
+pitch_max: 1.3848
+survival_rate: 0.999400
+total_steps: 153
+alive_steps: 78289
+max_consecutive_alive: 153
+
+
+DISTURBANCE
+------------------------------------------------------------
+num_disturbances: 4
+max_force_magnitude: 469.9099
+avg_recovery_time: 0.020000
+total_recovery_time: 0.080000
+survival_rate: 0.999836
+total_steps: 167
+total_samples: 85504
+alive_steps: 85490
+max_consecutive_alive: 167
+
+
+TERRAIN
+------------------------------------------------------------
+survival_rate: 0.999953
+total_steps: 165
+total_samples: 84480
+alive_steps: 84476
+max_consecutive_alive: 165
+distance_traveled_avg: 21.797439575195312
+distance_traveled_max: 46.73724365234375
+distance_traveled_min: 0.8029625415802002
+
+
+============================================================
+Summary / 汇总
+============================================================
+Total tests executed: 3
+测试总数: 3
